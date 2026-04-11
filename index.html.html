@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="SuperADWallet"/>
+  <meta name="theme-color" content="#F2F2F7"/>
+  <title>SuperADWallet</title>
+
+  <!-- PWA Manifest inline -->
+  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22SuperADWallet%22%2C%22short_name%22%3A%22SADWallet%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F2F2F7%22%2C%22theme_color%22%3A%22%23007AFF%22%7D"/>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1C1C1E; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    @media (max-width: 420px) {
+      body { background: #F2F2F7; align-items: flex-start; }
+    }
+    #root { width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React + ReactDOM (UMD) -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+  <!-- Recharts (UMD) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+
+  <!-- Babel standalone (transpile JSX in browser) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+    // ── Unpack globals ──────────────────────────────────────────
+    const { useState, useEffect, useCallback, useMemo, useRef } = React;
+    const {
+      PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+      LineChart, Line, XAxis, YAxis, CartesianGrid
+    } = Recharts;
+
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+const uid = () => Math.random().toString(36).slice(2, 10);
+const todayStr = () => new Date().toISOString().split("T")[0];
+const monthStart = () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+const weekStart = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().split("T")[0]; };
+const yearStart = () => new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0];
+
+const fmt = n => new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(n);
+const fmtShort = n => {
+  if (Math.abs(n) >= 1000) return `€${(n / 1000).toFixed(1)}k`;
+  return fmt(n);
+};
+const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+const fmtDateFull = d => new Date(d + "T00:00:00").toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+
+function load(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
+function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+
+// ─────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────
+const CAT_COLORS = [
+  "#007AFF","#34C759","#FF3B30","#FF9500","#AF52DE",
+  "#00C7BE","#FF2D55","#5AC8FA","#FFCC00","#FF6B35",
+  "#30B0C7","#4CD964","#FF6961","#FFD700","#C77DFF",
+];
+
+const ALL_EMOJIS = [
+  "🏠","🏡","🏢","🏗️","⚡","💡","🔥","💧","🌊","♨️",
+  "🛒","🥦","🍎","🥩","🥖","🧃","🍼","🥛",
+  "🍽️","🍕","🍔","🌮","🍣","☕","🍷","🍺","🧁","🍰",
+  "🛍️","👗","👠","👔","🧴","💄","💍","⌚",
+  "🚗","🚕","🚌","✈️","🚂","🛵","⛽","🅿️","🚢","🚁",
+  "🛡️","❤️‍🩹","💊","🏥","🧬","🦷","👓",
+  "🎬","🎮","🎵","🎭","📚","⚽","🎸","🎨","🎲","🎯",
+  "✈️","🏖️","🏔️","🗺️","🧳","🏕️","🗼","🗽",
+  "💰","💵","💳","🏦","📈","📉","💹","🪙","💸","🤑",
+  "💼","🖥️","📱","⌨️","🖨️","📊","📋","📌","✏️","📎",
+  "🐾","🐶","🐱","🐠","🐰","🦜","🌱","🌸","🌳","🌻",
+  "🎓","📖","✏️","🔬","🧪","🏫",
+  "🏋️","🧘","🚴","🏊","⛷️","🎾","🥊",
+  "🎁","🎂","🎉","💐","🪴","🕯️","🛁","🧹",
+  "🔧","🔨","🪚","⚙️","🏗️","🧰","🔌","💻",
+  "📦","🗂️","📂","📁","🗄️","🧾","📬",
+];
+
+const CATEGORY_PRESETS = [
+  // Casa
+  { id:"cat-affitto",   name:"Affitto/Mutuo",   icon:"🏠", color:"#007AFF" },
+  { id:"cat-util",      name:"Utenze",           icon:"⚡", color:"#FFCC00" },
+  { id:"cat-gas",       name:"Gas",              icon:"🔥", color:"#FF9500" },
+  { id:"cat-internet",  name:"Internet",         icon:"📡", color:"#5AC8FA" },
+  { id:"cat-telefono",  name:"Telefono",         icon:"📱", color:"#30B0C7" },
+  // Alimentari
+  { id:"cat-spesa",     name:"Spesa",            icon:"🛒", color:"#34C759" },
+  { id:"cat-ristorante",name:"Ristorante",       icon:"🍽️", color:"#FF6B35" },
+  { id:"cat-caffe",     name:"Bar/Caffè",        icon:"☕", color:"#FF9500" },
+  { id:"cat-takeaway",  name:"Takeaway",         icon:"🍕", color:"#FF3B30" },
+  // Shopping
+  { id:"cat-abbigliamento",name:"Abbigliamento", icon:"👗", color:"#AF52DE" },
+  { id:"cat-elettronica",name:"Elettronica",     icon:"🖥️", color:"#007AFF" },
+  { id:"cat-casa-shop", name:"Casa e Arredo",    icon:"🛋️", color:"#30B0C7" },
+  // Trasporti
+  { id:"cat-auto",      name:"Auto/Moto",        icon:"🚗", color:"#FF9500" },
+  { id:"cat-carburante",name:"Carburante",       icon:"⛽", color:"#FF3B30" },
+  { id:"cat-trasporto-pub",name:"Trasporto Pub.",icon:"🚌", color:"#34C759" },
+  { id:"cat-taxi",      name:"Taxi/Uber",        icon:"🚕", color:"#FFCC00" },
+  // Salute
+  { id:"cat-farmacia",  name:"Farmacia",         icon:"💊", color:"#FF2D55" },
+  { id:"cat-medico",    name:"Medico",           icon:"🏥", color:"#FF3B30" },
+  { id:"cat-palestra",  name:"Sport/Palestra",   icon:"🏋️", color:"#34C759" },
+  // Assicurazioni
+  { id:"cat-assicurazione",name:"Assicurazione", icon:"🛡️", color:"#5AC8FA" },
+  // Intrattenimento
+  { id:"cat-cinema",    name:"Cinema/Teatro",    icon:"🎬", color:"#C77DFF" },
+  { id:"cat-musica",    name:"Musica/Streaming", icon:"🎵", color:"#AF52DE" },
+  { id:"cat-videogiochi",name:"Videogiochi",     icon:"🎮", color:"#007AFF" },
+  { id:"cat-libri",     name:"Libri",            icon:"📚", color:"#FF9500" },
+  // Viaggi
+  { id:"cat-voli",      name:"Voli",             icon:"✈️", color:"#007AFF" },
+  { id:"cat-hotel",     name:"Hotel/Alloggi",    icon:"🏨", color:"#5AC8FA" },
+  { id:"cat-vacanze",   name:"Vacanze",          icon:"🏖️", color:"#FFCC00" },
+  // Istruzione
+  { id:"cat-istruzione",name:"Istruzione",       icon:"🎓", color:"#AF52DE" },
+  // Animali
+  { id:"cat-animali",   name:"Animali",          icon:"🐾", color:"#FF9500" },
+  // Reddito
+  { id:"cat-stipendio", name:"Stipendio",        icon:"💰", color:"#34C759" },
+  { id:"cat-freelance", name:"Freelance",        icon:"💼", color:"#007AFF" },
+  { id:"cat-investimenti",name:"Investimenti",   icon:"📈", color:"#34C759" },
+  { id:"cat-rimborso",  name:"Rimborso",         icon:"💸", color:"#4CD964" },
+  // Altro
+  { id:"cat-regali",    name:"Regali",           icon:"🎁", color:"#FF2D55" },
+  { id:"cat-abbonamenti",name:"Abbonamenti",     icon:"🔄", color:"#C77DFF" },
+  { id:"cat-altro",     name:"Altro",            icon:"📦", color:"#8E8E93" },
+];
+
+const METODI_PAGAMENTO = ["Carta di Credito", "Carta di Debito", "Contanti", "Bonifico", "PayPal", "Satispay", "Altro"];
+
+// ─── Smart category suggestion keyword map ────────────────────
+const CAT_KEYWORDS = {
+  "cat-affitto":       ["affitto","mutuo","condominio","appartamento","casa","rent","fitto"],
+  "cat-util":          ["luce","elettricità","enel","eni","energia","bolletta","acqua","acea","a2a"],
+  "cat-gas":           ["gas","riscaldamento","metano","snam"],
+  "cat-internet":      ["internet","wifi","adsl","fibra","tim","vodafone","fastweb","windtre","iliad","wind"],
+  "cat-telefono":      ["telefono","telefonino","cellulare","sim","ricarica","chiamate","tim mobile"],
+  "cat-spesa":         ["spesa","supermercato","coop","esselunga","lidl","conad","carrefour","pam","iper","alimentari","frutta","verdura","mercato"],
+  "cat-ristorante":    ["ristorante","trattoria","osteria","pizzeria","sushi","pranzo","cena","pizza","hamburger","burger","mcdonald","kfc","kebab","poke"],
+  "cat-caffe":         ["caffè","caffe","bar","cappuccino","cornetto","colazione","aperitivo","spritz"],
+  "cat-takeaway":      ["takeaway","asporto","deliveroo","just eat","glovo","domino","consegna"],
+  "cat-abbigliamento": ["zara","h&m","vestiti","scarpe","abbigliamento","maglia","pantaloni","giacca","nike","adidas","zalando","shein"],
+  "cat-elettronica":   ["amazon","apple","samsung","telefono","pc","laptop","computer","monitor","cuffie","auricolari","iphone","ipad","mediaworld","unieuro"],
+  "cat-casa-shop":     ["ikea","arredo","mobili","divano","letto","cucina","bagno","leroy","bricoman","ferramenta","casalinghi"],
+  "cat-auto":          ["revisione","officina","meccanico","bollo","parcheggio","garage","moto","scooter","gomme","pneumatici"],
+  "cat-carburante":    ["benzina","gasolio","carburante","distributore","eni","q8","ip","shell","pompa"],
+  "cat-trasporto-pub": ["autobus","metro","tram","treno","trenitalia","italo","atm","bus","biglietto","abbonamento"],
+  "cat-taxi":          ["taxi","uber","cabify","ncc","mytaxi","bolt"],
+  "cat-farmacia":      ["farmacia","medicine","medicinale","pillole","vitamina","integratore","parafarmacia"],
+  "cat-medico":        ["medico","dottore","dentista","visita","esame","analisi","ospedale","pronto soccorso","fisioterapia","oculista"],
+  "cat-palestra":      ["palestra","gym","fitness","piscina","nuoto","yoga","pilates","crossfit","sport","calcio","tennis","running"],
+  "cat-assicurazione": ["assicurazione","polizza","rc auto","infortuni","vita","generali","unipol","allianz"],
+  "cat-cinema":        ["cinema","teatro","concerto","spettacolo","biglietto","evento","museo","mostra"],
+  "cat-musica":        ["spotify","apple music","netflix","disney","prime video","hbo","dazn","streaming","youtube premium"],
+  "cat-videogiochi":   ["playstation","xbox","nintendo","steam","gioco","videogioco","app store","google play"],
+  "cat-libri":         ["libro","libri","feltrinelli","mondadori","amazon kindle","fumetto","rivista","giornale"],
+  "cat-voli":          ["volo","aereo","ryanair","easyjet","ita","lufthansa","aeroporto","check-in"],
+  "cat-hotel":         ["hotel","airbnb","booking","albergo","b&b","ostello","agriturismo","resort"],
+  "cat-vacanze":       ["vacanza","vacanze","viaggio","tour","crociera","escursione","gita"],
+  "cat-istruzione":    ["scuola","università","corso","lezione","tutor","libro scolastico","udemy","coursera","masterclass"],
+  "cat-animali":       ["veterinario","cibo gatto","cibo cane","animale","pet","toelettatura","petshop"],
+  "cat-stipendio":     ["stipendio","salario","paga","mensile","busta paga","accredito"],
+  "cat-freelance":     ["fattura","freelance","consulenza","progetto","cliente","pagamento ricevuto","bonifico ricevuto"],
+  "cat-investimenti":  ["dividendo","cedola","investimento","rendita","interesse","fondo","etf","azioni"],
+  "cat-rimborso":      ["rimborso","restituzione","accredito","cashback","storno"],
+  "cat-regali":        ["regalo","compleanno","natale","anniversario","fiori","confetti","matrimonio"],
+  "cat-abbonamenti":   ["abbonamento","membership","canone","quota","iscrizione","rinnovo"],
+};
+
+function suggestCategory(description, categories) {
+  if (!description || description.length < 2) return null;
+  const lower = description.toLowerCase();
+  let best = null, bestScore = 0;
+  for (const [catId, keywords] of Object.entries(CAT_KEYWORDS)) {
+    for (const kw of keywords) {
+      if (lower.includes(kw)) {
+        const score = kw.length; // longer match = more specific
+        if (score > bestScore) { bestScore = score; best = catId; }
+      }
+    }
+  }
+  if (!best) return null;
+  return categories.find(c => c.id === best) || null;
+}
+
+function processRecurring(recurrings, transactions) {
+  const newTx = [];
+  const today = todayStr();
+  recurrings.forEach(r => {
+    if (!r.enabled) return;
+    const existing = new Set(transactions.filter(t => t.recurringId === r.id).map(t => t.date));
+    let cursor = new Date(r.startDate + "T00:00:00");
+    const end = new Date(today + "T00:00:00");
+    while (cursor <= end) {
+      const ds = cursor.toISOString().split("T")[0];
+      if (!existing.has(ds)) {
+        newTx.push({ id: uid(), date: ds, amount: r.amount, type: "uscita", categoryId: r.categoryId, description: r.name, paymentMethod: "Bonifico", notes: `Auto: ${r.name}`, recurringId: r.id, auto: true });
+      }
+      if (r.frequency === "mensile") cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, cursor.getDate());
+      else cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), cursor.getDate());
+    }
+  });
+  return newTx;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CSS – iPhone / iOS aesthetic
+// ─────────────────────────────────────────────────────────────
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --ios-bg:       #F2F2F7;
+  --ios-bg2:      #E5E5EA;
+  --ios-surface:  #FFFFFF;
+  --ios-surface2: #F2F2F7;
+  --ios-border:   rgba(60,60,67,0.12);
+  --ios-blue:     #007AFF;
+  --ios-green:    #34C759;
+  --ios-red:      #FF3B30;
+  --ios-orange:   #FF9500;
+  --ios-purple:   #AF52DE;
+  --ios-gray:     #8E8E93;
+  --ios-gray2:    #AEAEB2;
+  --ios-label:    #1C1C1E;
+  --ios-label2:   #3C3C43;
+  --ios-label3:   #8E8E93;
+  --ios-sep:      rgba(60,60,67,0.18);
+  --ios-fill:     rgba(120,120,128,0.12);
+  --ios-fill2:    rgba(120,120,128,0.16);
+  --safe-top:     env(safe-area-inset-top, 44px);
+  --safe-bottom:  env(safe-area-inset-bottom, 34px);
+}
+
+html,body{height:100%;background:#000;}
+body{
+  font-family:'Nunito',system-ui,-apple-system,sans-serif;
+  font-size:15px; color:var(--ios-label);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
+  user-select:none;
+}
+::-webkit-scrollbar{display:none;}
+
+/* ── Phone shell ──────────────────────────────────────────── */
+.phone{
+  width:390px; min-height:844px; max-height:100vh;
+  margin:0 auto; position:relative; overflow:hidden;
+  background:var(--ios-bg);
+  border-radius:0;
+  display:flex; flex-direction:column;
+}
+@media(min-width:420px){
+  body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1C1C1E;}
+  .phone{
+    height:844px;
+    border-radius:54px;
+    box-shadow:
+      0 0 0 12px #1C1C1E,
+      0 0 0 14px #3A3A3C,
+      0 0 0 15px #1C1C1E,
+      0 40px 120px rgba(0,0,0,.8);
+  }
+}
+
+/* ── Status bar ───────────────────────────────────────────── */
+.status-bar{
+  height:48px; padding:14px 28px 0;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0;
+}
+.status-time{font-size:15px;font-weight:700;letter-spacing:-.3px;}
+.status-icons{display:flex;gap:6px;align-items:center;}
+.status-icons svg{width:16px;height:16px;fill:var(--ios-label);}
+
+/* ── Nav bar ──────────────────────────────────────────────── */
+.nav-bar{
+  display:flex; padding:0 0 4px;
+  background:rgba(242,242,247,0.92);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-top:0.5px solid var(--ios-sep);
+  flex-shrink:0; position:relative; z-index:50;
+}
+.nav-item{
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  padding:8px 0 2px; gap:3px; background:none; border:none;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.nav-icon{
+  width:28px; height:28px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; transition:transform .12s;
+}
+.nav-item:active .nav-icon{transform:scale(.88);}
+.nav-label{font-size:10px;font-weight:600;color:var(--ios-gray);}
+.nav-item.active .nav-label{color:var(--ios-blue);}
+.nav-item.active .nav-icon{background:rgba(0,122,255,.12);}
+
+/* ── Scroll area ──────────────────────────────────────────── */
+.scroll-area{
+  flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding-bottom:8px;
+}
+
+/* ── Large title header ───────────────────────────────────── */
+.large-title-bar{
+  padding:4px 20px 8px;
+  background:var(--ios-bg);
+}
+.large-title{
+  font-size:32px; font-weight:800;
+  letter-spacing:-.5px; color:var(--ios-label);
+  line-height:1.1;
+}
+.large-title span{color:var(--ios-blue);}
+.nav-action{
+  font-size:17px; color:var(--ios-blue); font-weight:600;
+  background:none; border:none; cursor:pointer; padding:4px 0;
+  font-family:inherit;
+}
+
+/* ── iOS grouped list ─────────────────────────────────────── */
+.ios-section{padding:0 16px; margin-bottom:8px;}
+.ios-section-label{
+  font-size:13px; font-weight:600; color:var(--ios-gray);
+  text-transform:uppercase; letter-spacing:.06em;
+  padding:0 4px; margin-bottom:6px; margin-top:20px;
+}
+.ios-group{
+  background:var(--ios-surface); border-radius:12px;
+  overflow:hidden;
+}
+.ios-row{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 16px; border-bottom:.5px solid var(--ios-sep);
+  position:relative; cursor:pointer;
+  transition:background .1s;
+}
+.ios-row:last-child{border-bottom:none;}
+.ios-row:active{background:rgba(0,0,0,.04);}
+.ios-row-icon{
+  width:32px; height:32px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px; flex-shrink:0;
+}
+.ios-row-content{flex:1;min-width:0;}
+.ios-row-title{font-size:16px;font-weight:500;color:var(--ios-label);}
+.ios-row-sub{font-size:13px;color:var(--ios-gray);margin-top:1px;}
+.ios-row-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.ios-row-value{font-size:16px;font-weight:600;color:var(--ios-gray);}
+.ios-chevron{color:var(--ios-gray2);font-size:14px;}
+
+/* ── Balance card ─────────────────────────────────────────── */
+.balance-card{
+  margin:12px 16px;
+  background:linear-gradient(145deg,#007AFF 0%,#5AC8FA 100%);
+  border-radius:22px; padding:22px;
+  box-shadow:0 8px 32px rgba(0,122,255,.35);
+  position:relative; overflow:hidden;
+}
+.balance-card::before{
+  content:''; position:absolute;
+  top:-30px; right:-30px; width:140px; height:140px;
+  border-radius:50%; background:rgba(255,255,255,.1);
+}
+.balance-card::after{
+  content:''; position:absolute;
+  bottom:-20px; left:30px; width:80px; height:80px;
+  border-radius:50%; background:rgba(255,255,255,.08);
+}
+.balance-label{font-size:13px;font-weight:600;color:rgba(255,255,255,.75);letter-spacing:.03em;}
+.balance-amount{
+  font-size:40px; font-weight:800; color:#fff;
+  letter-spacing:-1.5px; margin:4px 0 18px;
+  line-height:1;
+}
+.balance-pills{display:flex;gap:10px;}
+.balance-pill{
+  flex:1; background:rgba(255,255,255,.18);
+  border-radius:12px; padding:10px 12px;
+  backdrop-filter:blur(10px);
+}
+.balance-pill-label{font-size:11px;font-weight:600;color:rgba(255,255,255,.7);}
+.balance-pill-val{font-size:15px;font-weight:700;color:#fff;margin-top:2px;}
+
+/* ── Quick period selector ────────────────────────────────── */
+.period-scroll{
+  display:flex; gap:8px; padding:8px 16px 0;
+  overflow-x:auto; -webkit-overflow-scrolling:touch;
+}
+.period-chip{
+  padding:6px 14px; border-radius:20px;
+  font-size:13px; font-weight:600; white-space:nowrap;
+  border:none; cursor:pointer; flex-shrink:0;
+  background:var(--ios-surface); color:var(--ios-gray);
+  transition:all .15s;
+}
+.period-chip.active{background:var(--ios-blue);color:#fff;}
+
+/* ── Transaction cell ─────────────────────────────────────── */
+.tx-cell{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 16px; border-bottom:.5px solid var(--ios-sep);
+  cursor:pointer; transition:background .1s; position:relative;
+}
+.tx-cell:last-child{border-bottom:none;}
+.tx-cell:active{background:rgba(0,0,0,.04);}
+.tx-cell-icon{
+  width:40px; height:40px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; flex-shrink:0;
+}
+.tx-cell-info{flex:1;min-width:0;}
+.tx-cell-title{font-size:15px;font-weight:600;color:var(--ios-label);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tx-cell-sub{font-size:12px;color:var(--ios-gray);margin-top:1px;}
+.tx-cell-amt{font-size:16px;font-weight:700;flex-shrink:0;}
+.auto-tag{
+  font-size:9px;font-weight:700;
+  background:rgba(0,122,255,.12);color:var(--ios-blue);
+  border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle;
+}
+
+/* ── Segmented control ────────────────────────────────────── */
+.seg-ctrl{
+  display:flex; background:var(--ios-fill); border-radius:9px;
+  padding:2px; gap:0; margin:0 16px 12px;
+}
+.seg-btn{
+  flex:1; padding:7px 0; border-radius:7px;
+  font-size:13px; font-weight:600; border:none; cursor:pointer;
+  background:transparent; color:var(--ios-gray);
+  font-family:inherit; transition:all .15s;
+}
+.seg-btn.active{background:var(--ios-surface);color:var(--ios-label);box-shadow:0 1px 4px rgba(0,0,0,.12);}
+
+/* ── Input / Form ─────────────────────────────────────────── */
+.ios-input-group{margin-bottom:14px;}
+.ios-input-label{font-size:13px;font-weight:600;color:var(--ios-gray);margin-bottom:6px;display:block;padding-left:4px;}
+.ios-input{
+  width:100%; background:var(--ios-surface);
+  border:none; border-radius:12px;
+  color:var(--ios-label); font-size:16px;
+  padding:13px 16px; font-family:inherit;
+  outline:none;
+  box-shadow:0 0 0 0.5px var(--ios-sep);
+  -webkit-appearance:none; appearance:none;
+}
+.ios-input:focus{box-shadow:0 0 0 2px var(--ios-blue);}
+.ios-input::placeholder{color:var(--ios-gray2);}
+select.ios-input{cursor:pointer;}
+select.ios-input option{background:#fff;}
+.amount-wrap{position:relative;}
+.amount-wrap .ios-input{padding-left:32px;font-size:28px;font-weight:700;letter-spacing:-.5px;}
+.amount-sym{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:24px;font-weight:600;color:var(--ios-gray2);}
+.type-pills{display:flex;gap:8px;margin-bottom:14px;}
+.type-pill{
+  flex:1; padding:13px; border-radius:14px;
+  border:.5px solid var(--ios-sep); background:var(--ios-surface);
+  font-size:15px;font-weight:700;cursor:pointer;
+  font-family:inherit; color:var(--ios-gray); transition:all .15s;
+}
+.type-pill.e{background:rgba(255,59,48,.08);border-color:rgba(255,59,48,.3);color:#FF3B30;}
+.type-pill.i{background:rgba(52,199,89,.08);border-color:rgba(52,199,89,.3);color:#34C759;}
+
+/* ── Sheet modal ──────────────────────────────────────────── */
+.sheet-overlay{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,.35);backdrop-filter:blur(6px);
+  z-index:200;display:flex;align-items:flex-end;
+}
+.sheet{
+  background:var(--ios-surface);
+  border-radius:20px 20px 0 0;
+  width:100%; max-height:92%;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  animation:sheetUp .28s cubic-bezier(.32,1,.36,1);
+}
+@keyframes sheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.sheet-handle{width:36px;height:5px;border-radius:3px;background:var(--ios-sep);margin:12px auto 0;}
+.sheet-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px 12px;
+}
+.sheet-title{font-size:18px;font-weight:800;color:var(--ios-label);}
+.sheet-action{
+  font-size:16px;font-weight:700;color:var(--ios-blue);
+  background:none;border:none;cursor:pointer;font-family:inherit;
+  padding:4px 0;
+}
+.sheet-cancel{font-size:16px;color:var(--ios-red);background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 0;}
+.sheet-body{padding:0 20px 40px;}
+
+/* ── Category grid picker ─────────────────────────────────── */
+.cat-grid-picker{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+}
+.cat-grid-item{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px; padding:10px 6px 9px;
+  border-radius:14px; border:1.5px solid var(--ios-sep);
+  background:var(--ios-fill); cursor:pointer;
+  transition:all .13s; text-align:center;
+}
+.cat-grid-item:active{transform:scale(.93);}
+.cat-grid-item.active{border-width:2px;}
+.cat-grid-item-icon{font-size:22px;line-height:1;}
+.cat-grid-item-name{font-size:10px;font-weight:700;color:var(--ios-gray);line-height:1.2;word-break:break-word;}
+.cat-grid-item.active .cat-grid-item-name{color:#fff;}
+
+/* ── AI suggestion banner ─────────────────────────────────── */
+.suggest-banner{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(0,122,255,.08);
+  border:1px solid rgba(0,122,255,.2);
+  border-radius:12px;padding:10px 13px;margin-bottom:10px;
+  animation:fadeSlide .18s ease;cursor:pointer;
+}
+.suggest-banner:active{background:rgba(0,122,255,.14);}
+.suggest-icon-wrap{
+  width:36px;height:36px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  flex-shrink:0;
+}
+.suggest-label{flex:1;}
+.suggest-label-top{font-size:11px;color:var(--ios-blue);font-weight:700;letter-spacing:.02em;}
+.suggest-label-name{font-size:14px;font-weight:700;color:var(--ios-label);margin-top:1px;}
+.suggest-accept{font-size:12px;font-weight:700;color:var(--ios-blue);background:rgba(0,122,255,.12);border-radius:8px;padding:4px 10px;white-space:nowrap;border:none;cursor:pointer;font-family:inherit;}
+
+/* ── Cat search ───────────────────────────────────────────── */
+.cat-search-bar{
+  display:flex;align-items:center;gap:7px;
+  background:var(--ios-fill2);border-radius:10px;
+  padding:7px 11px;margin-bottom:10px;
+}
+.cat-search-bar input{
+  flex:1;background:none;border:none;outline:none;
+  font-size:14px;color:var(--ios-label);font-family:inherit;
+}
+.cat-search-bar input::placeholder{color:var(--ios-gray2);}
+
+/* ── Tag pill (inline) ────────────────────────────────────── */
+.tag-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:20px;
+  font-size:12px;font-weight:700;
+  background:rgba(175,82,222,.13);color:#AF52DE;
+  border:1px solid rgba(175,82,222,.25);
+}
+
+/* ── Tag autocomplete dropdown ────────────────────────────── */
+.tag-dropdown{
+  background:var(--ios-surface);
+  border-radius:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.14);
+  overflow:hidden;margin-top:4px;
+  border:.5px solid var(--ios-sep);
+}
+.tag-dropdown-item{
+  padding:11px 14px;font-size:14px;font-weight:600;
+  cursor:pointer;border-bottom:.5px solid var(--ios-sep);
+  display:flex;align-items:center;gap:8px;
+  transition:background .1s;
+}
+.tag-dropdown-item:last-child{border-bottom:none;}
+.tag-dropdown-item:active{background:var(--ios-fill);}
+
+/* ── Progetti screen ──────────────────────────────────────── */
+.progetto-card{
+  background:var(--ios-surface);border-radius:16px;
+  margin-bottom:10px;overflow:hidden;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+.progetto-header{
+  padding:16px;cursor:pointer;
+  display:flex;align-items:center;gap:12px;
+}
+.progetto-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+}
+.progetto-body{
+  border-top:.5px solid var(--ios-sep);
+  padding:0 16px 14px;
+}
+.progetto-stat-row{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:8px;margin:14px 0 12px;
+}
+.progetto-stat{
+  background:var(--ios-fill);border-radius:10px;
+  padding:10px 8px;text-align:center;
+}
+.progetto-stat-label{font-size:10px;font-weight:700;color:var(--ios-gray);text-transform:uppercase;}
+.progetto-stat-val{font-size:14px;font-weight:800;margin-top:3px;}
+
+/* ── Onboarding / Profile setup ──────────────────────────── */
+.onboard-screen{
+  position:absolute;inset:0;
+  background:linear-gradient(160deg,#007AFF 0%,#5AC8FA 60%,#34C759 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:300;padding:32px 28px 48px;
+  animation:fadeSlide .3s ease;
+}
+.onboard-logo{
+  font-size:38px;font-weight:900;color:#fff;letter-spacing:-1px;margin-bottom:6px;
+}
+.onboard-sub{font-size:15px;color:rgba(255,255,255,.8);margin-bottom:40px;font-weight:500;}
+.onboard-avatar-wrap{position:relative;margin-bottom:28px;cursor:pointer;}
+.onboard-avatar{
+  width:100px;height:100px;border-radius:50%;
+  background:rgba(255,255,255,.25);border:3px solid rgba(255,255,255,.6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:44px;overflow:hidden;
+}
+.onboard-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.onboard-avatar-edit{
+  position:absolute;bottom:2px;right:2px;
+  width:28px;height:28px;border-radius:50%;
+  background:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.onboard-input{
+  width:100%;background:rgba(255,255,255,.2);
+  border:1.5px solid rgba(255,255,255,.4);border-radius:14px;
+  color:#fff;font-size:17px;font-weight:600;
+  padding:14px 18px;font-family:inherit;outline:none;margin-bottom:12px;
+  -webkit-appearance:none;
+}
+.onboard-input::placeholder{color:rgba(255,255,255,.55);}
+.onboard-input:focus{border-color:#fff;background:rgba(255,255,255,.25);}
+.onboard-btn{
+  width:100%;padding:16px;border-radius:16px;
+  background:#fff;border:none;cursor:pointer;
+  font-size:17px;font-weight:800;color:#007AFF;
+  font-family:inherit;margin-top:8px;
+  box-shadow:0 4px 20px rgba(0,0,0,.15);
+  transition:transform .12s;
+}
+.onboard-btn:active{transform:scale(.97);}
+
+/* ── Profile header on dashboard ─────────────────────────── */
+.profile-header{
+  display:flex;align-items:center;gap:14px;
+  padding:4px 20px 14px;
+}
+.profile-avatar{
+  width:46px;height:46px;border-radius:50%;
+  background:linear-gradient(135deg,#007AFF,#5AC8FA);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;overflow:hidden;
+  box-shadow:0 2px 10px rgba(0,122,255,.3);
+}
+.profile-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.profile-greeting{flex:1;}
+.profile-ciao{font-size:13px;color:var(--ios-gray);font-weight:500;}
+.profile-name{font-size:20px;font-weight:800;color:var(--ios-label);letter-spacing:-.3px;}
+.profile-settings-btn{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--ios-fill);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+}
+
+/* ── Profile edit sheet ───────────────────────────────────── */
+.avatar-grid{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:8px;
+}
+.avatar-opt{
+  width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;cursor:pointer;border:3px solid transparent;
+  transition:transform .1s;
+}
+.avatar-opt:active{transform:scale(.88);}
+.avatar-opt.sel{border-color:var(--ios-blue);}
+
+
+
+
+/* ── Emoji grid ───────────────────────────────────────────── */
+.emoji-grid{
+  display:grid;grid-template-columns:repeat(8,1fr);
+  gap:6px;margin-top:10px;
+}
+.emoji-btn{
+  width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;cursor:pointer;border:none;background:var(--ios-fill);
+  transition:transform .1s;
+}
+.emoji-btn:active{transform:scale(.85);}
+.emoji-btn.sel{background:rgba(0,122,255,.15);outline:2px solid var(--ios-blue);}
+.color-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.color-dot{
+  width:30px;height:30px;border-radius:50%;cursor:pointer;
+  border:2.5px solid transparent;transition:transform .1s;
+}
+.color-dot:active{transform:scale(.88);}
+.color-dot.sel{border-color:var(--ios-label);}
+
+/* ── Chart ────────────────────────────────────────────────── */
+.chart-card{background:var(--ios-surface);border-radius:12px;padding:16px;margin-bottom:8px;}
+.chart-title{font-size:15px;font-weight:700;color:var(--ios-label);margin-bottom:14px;}
+.chart-h{height:180px;}
+.chart-h-sm{height:150px;}
+
+/* ── Progress bar ─────────────────────────────────────────── */
+.prog-track{background:var(--ios-fill2);border-radius:4px;height:5px;overflow:hidden;margin-top:5px;}
+.prog-fill{height:100%;border-radius:4px;transition:width .4s;}
+
+/* ── FAB ──────────────────────────────────────────────────── */
+.fab{
+  position:absolute;bottom:90px;right:20px;
+  width:56px;height:56px;border-radius:18px;
+  background:var(--ios-blue);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 24px rgba(0,122,255,.45);
+  z-index:99;font-size:26px;color:#fff;font-weight:400;
+  transition:transform .12s;
+}
+.fab:active{transform:scale(.9);}
+
+/* ── Toggle switch ────────────────────────────────────────── */
+.ios-toggle{position:relative;display:inline-block;width:51px;height:31px;}
+.ios-toggle input{opacity:0;width:0;height:0;}
+.ios-toggle-track{
+  position:absolute;inset:0;background:#E5E5EA;border-radius:16px;cursor:pointer;transition:.2s;
+}
+.ios-toggle input:checked+.ios-toggle-track{background:var(--ios-green);}
+.ios-toggle-track::after{
+  content:'';position:absolute;left:2px;top:2px;
+  width:27px;height:27px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);
+  transition:transform .2s;
+}
+.ios-toggle input:checked+.ios-toggle-track::after{transform:translateX(20px);}
+
+/* ── Search ───────────────────────────────────────────────── */
+.ios-search-bar{
+  display:flex;align-items:center;gap:8px;
+  background:var(--ios-fill);border-radius:10px;
+  padding:8px 12px;margin:8px 16px;
+}
+.ios-search-bar input{
+  flex:1;background:none;border:none;outline:none;
+  font-size:15px;color:var(--ios-label);font-family:inherit;
+}
+.ios-search-bar input::placeholder{color:var(--ios-gray2);}
+.ios-search-bar span{font-size:15px;color:var(--ios-gray2);}
+
+/* ── Badge ────────────────────────────────────────────────── */
+.badge-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--ios-red);
+  position:absolute;top:-2px;right:-2px;
+}
+
+/* ── Recurring pill ───────────────────────────────────────── */
+.freq-badge{
+  font-size:10px;font-weight:700;border-radius:5px;padding:2px 7px;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.freq-mensile{background:rgba(0,122,255,.12);color:var(--ios-blue);}
+.freq-annuale{background:rgba(52,199,89,.12);color:var(--ios-green);}
+
+/* ── Empty state ──────────────────────────────────────────── */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;
+  padding:60px 20px;color:var(--ios-gray);
+}
+.empty-icon{font-size:52px;margin-bottom:12px;}
+.empty-title{font-size:18px;font-weight:700;color:var(--ios-label2);margin-bottom:6px;}
+.empty-sub{font-size:14px;text-align:center;line-height:1.5;}
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes fadeSlide{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.tx-cell{animation:fadeSlide .18s ease both;}
+
+/* ── iOS list btn ─────────────────────────────────────────── */
+.ios-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;padding:15px;border-radius:14px;
+  border:none;cursor:pointer;font-size:16px;
+  font-weight:700;font-family:inherit;transition:opacity .15s;
+}
+.ios-btn:active{opacity:.75;}
+.ios-btn-blue{background:var(--ios-blue);color:#fff;}
+.ios-btn-red{background:rgba(255,59,48,.1);color:var(--ios-red);}
+.ios-btn-gray{background:var(--ios-fill);color:var(--ios-label2);}
+`;
+
+function injectCSS(css) {
+  if (document.getElementById("saw-css")) return;
+  const s = document.createElement("style"); s.id = "saw-css"; s.textContent = css;
+  document.head.appendChild(s);
+}
+
+// ─────────────────────────────────────────────────────────────
+// ICONS (system-style SVG)
+// ─────────────────────────────────────────────────────────────
+const SFIcon = ({ name, size = 22, color = "currentColor" }) => {
+  const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  const map = {
+    home: <svg {...p}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>,
+    plus: <svg {...p}><circle cx="12" cy="12" r="10" fill={color} stroke="none" /><line x1="12" y1="8" x2="12" y2="16" stroke="#fff" strokeWidth="2.5" /><line x1="8" y1="12" x2="16" y2="12" stroke="#fff" strokeWidth="2.5" /></svg>,
+    list: <svg {...p}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1" /></svg>,
+    repeat: <svg {...p}><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 014-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>,
+    chart: <svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>,
+    gear: <svg {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>,
+    search: <svg {...p}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
+    trash: <svg {...p}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>,
+    download: <svg {...p}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>,
+    xmark: <svg {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
+    tag:   <svg {...p}><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+  };
+  return map[name] || null;
+};
+
+// ─────────────────────────────────────────────────────────────
+// SHEET MODAL
+// ─────────────────────────────────────────────────────────────
+function Sheet({ title, onClose, onSave, saveLabel = "Fine", children }) {
+  return (
+    <div className="sheet-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="sheet">
+        <div className="sheet-handle" />
+        <div className="sheet-header">
+          <button className="sheet-cancel" onClick={onClose}>Annulla</button>
+          <div className="sheet-title">{title}</div>
+          {onSave ? <button className="sheet-action" onClick={onSave}>{saveLabel}</button>
+                  : <div style={{ width: 60 }} />}
+        </div>
+        <div className="sheet-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// TX CELL
+// ─────────────────────────────────────────────────────────────
+function TxCell({ tx, categories, onClick, delay = 0 }) {
+  const cat = categories.find(c => c.id === tx.categoryId) || CATEGORY_PRESETS[CATEGORY_PRESETS.length - 1];
+  const isInc = tx.type === "entrata";
+  return (
+    <div className="tx-cell" onClick={() => onClick(tx)} style={{ animationDelay: `${delay * 40}ms` }}>
+      <div className="tx-cell-icon" style={{ background: cat.color + "22" }}>{cat.icon}</div>
+      <div className="tx-cell-info">
+        <div className="tx-cell-title">
+          {tx.description}
+          {tx.auto && <span className="auto-tag">AUTO</span>}
+        </div>
+        <div className="tx-cell-sub">{fmtDate(tx.date)} · {cat.name}{tx.tag ? <span className="tag-pill" style={{ marginLeft: 6, fontSize: 10 }}>🏷️ {tx.tag}</span> : ""}</div>
+      </div>
+      <div className="tx-cell-amt" style={{ color: isInc ? "#34C759" : "#FF3B30" }}>
+        {isInc ? "+" : "−"}{fmt(tx.amount)}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADD / EDIT TRANSACTION SHEET
+// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// TAG INPUT with autocomplete
+// ─────────────────────────────────────────────────────────────
+function TagInput({ value, onChange, allTags }) {
+  const [open, setOpen] = useState(false);
+  const suggestions = allTags.filter(t => t && t.toLowerCase().includes(value.toLowerCase()) && t !== value);
+
+  return (
+    <div className="ios-input-group" style={{ position: "relative" }}>
+      <label className="ios-input-label">🏷️ Tag / Progetto <span style={{ fontWeight: 400, color: "var(--ios-gray2)" }}>(opzionale)</span></label>
+      <input
+        className="ios-input"
+        type="text"
+        placeholder="es. Vacanza Grecia 2025, Matrimonio, Trasloco…"
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {value && (
+        <div style={{ marginTop: 6 }}>
+          <span className="tag-pill">🏷️ {value}</span>
+        </div>
+      )}
+      {open && suggestions.length > 0 && (
+        <div className="tag-dropdown" style={{ position: "absolute", left: 0, right: 0, zIndex: 50 }}>
+          {suggestions.slice(0, 5).map(s => (
+            <div key={s} className="tag-dropdown-item" onMouseDown={() => { onChange(s); setOpen(false); }}>
+              <span className="tag-pill" style={{ fontSize: 11 }}>🏷️</span> {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROGETTI screen — tag breakdown
+// ─────────────────────────────────────────────────────────────
+function Progetti({ transactions, categories }) {
+  const [selected, setSelected] = useState(null);
+
+  // Collect all unique non-empty tags
+  const allTags = useMemo(() => {
+    const s = new Set(transactions.map(t => t.tag).filter(Boolean));
+    return [...s].sort();
+  }, [transactions]);
+
+  // Build per-tag summary
+  const tagSummaries = useMemo(() => {
+    return allTags.map(tag => {
+      const txs = transactions.filter(t => t.tag === tag);
+      const exp = txs.filter(t => t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+      const inc = txs.filter(t => t.type === "entrata").reduce((s, t) => s + t.amount, 0);
+      const dates = txs.map(t => t.date).sort();
+      const bycat = {};
+      txs.filter(t => t.type === "uscita").forEach(t => { bycat[t.categoryId] = (bycat[t.categoryId] || 0) + t.amount; });
+      const breakdown = Object.entries(bycat)
+        .map(([id, amt]) => ({ cat: categories.find(c => c.id === id) || { name: "Altro", icon: "📦", color: "#8E8E93" }, amt }))
+        .sort((a, b) => b.amt - a.amt);
+      return { tag, txs, exp, inc, net: inc - exp, dates, breakdown, count: txs.length };
+    }).sort((a, b) => b.exp - a.exp);
+  }, [allTags, transactions, categories]);
+
+  // Tag emoji auto-picker based on name
+  const tagEmoji = name => {
+    const n = name.toLowerCase();
+    if (n.includes("vacanz") || n.includes("viaggio") || n.includes("trip")) return "✈️";
+    if (n.includes("matrimon") || n.includes("wedding")) return "💒";
+    if (n.includes("trasloco") || n.includes("casa")) return "📦";
+    if (n.includes("ristruttur") || n.includes("lavori")) return "🔨";
+    if (n.includes("natale") || n.includes("christmas")) return "🎄";
+    if (n.includes("compleanno") || n.includes("birthday")) return "🎂";
+    if (n.includes("lavoro") || n.includes("business") || n.includes("work")) return "💼";
+    if (n.includes("sport") || n.includes("palestra")) return "🏋️";
+    return "🏷️";
+  };
+
+  const tagColor = idx => {
+    const cols = ["#007AFF","#AF52DE","#FF9500","#34C759","#FF3B30","#00C7BE","#FF2D55","#FFCC00"];
+    return cols[idx % cols.length];
+  };
+
+  if (allTags.length === 0) {
+    return (
+      <div className="scroll-area">
+        <div className="empty-state" style={{ paddingTop: 80 }}>
+          <div className="empty-icon">🏷️</div>
+          <div className="empty-title">Nessun tag ancora</div>
+          <div className="empty-sub">Quando aggiungi una transazione,<br />usa il campo <b>Tag / Progetto</b> per raggruppare<br />spese correlate — es. "Vacanza Grecia 2025"</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="scroll-area">
+      <div style={{ padding: "0 16px 4px", fontSize: 13, color: "var(--ios-gray)" }}>
+        {allTags.length} progett{allTags.length !== 1 ? "i" : "o"} · tocca per il dettaglio
+      </div>
+
+      <div style={{ padding: "8px 16px" }}>
+        {tagSummaries.map((s, idx) => {
+          const isOpen = selected === s.tag;
+          const color = tagColor(idx);
+          const emoji = tagEmoji(s.tag);
+
+          return (
+            <div className="progetto-card" key={s.tag}>
+              {/* Header — always visible */}
+              <div className="progetto-header" onClick={() => setSelected(isOpen ? null : s.tag)}>
+                <div className="progetto-icon" style={{ background: color + "18" }}>{emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: "var(--ios-label)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.tag}</div>
+                  <div style={{ fontSize: 12, color: "var(--ios-gray)", marginTop: 2 }}>
+                    {s.count} spese · {s.dates[0] ? fmtDate(s.dates[0]) : ""}{s.dates.length > 1 ? ` → ${fmtDate(s.dates[s.dates.length - 1])}` : ""}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#FF3B30" }}>−{fmt(s.exp)}</div>
+                  {s.inc > 0 && <div style={{ fontSize: 12, color: "#34C759", fontWeight: 600 }}>+{fmt(s.inc)}</div>}
+                </div>
+                <div style={{ color: "var(--ios-gray2)", fontSize: 18, marginLeft: 6, transition: "transform .2s", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>›</div>
+              </div>
+
+              {/* Body — expanded */}
+              {isOpen && (
+                <div className="progetto-body">
+                  {/* Stats */}
+                  <div className="progetto-stat-row">
+                    <div className="progetto-stat">
+                      <div className="progetto-stat-label">Uscite</div>
+                      <div className="progetto-stat-val" style={{ color: "#FF3B30" }}>{fmtShort(s.exp)}</div>
+                    </div>
+                    <div className="progetto-stat">
+                      <div className="progetto-stat-label">Entrate</div>
+                      <div className="progetto-stat-val" style={{ color: "#34C759" }}>{fmtShort(s.inc)}</div>
+                    </div>
+                    <div className="progetto-stat">
+                      <div className="progetto-stat-label">Saldo</div>
+                      <div className="progetto-stat-val" style={{ color: s.net >= 0 ? "#34C759" : "#FF3B30" }}>{fmtShort(s.net)}</div>
+                    </div>
+                  </div>
+
+                  {/* Category breakdown */}
+                  {s.breakdown.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ios-gray)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Breakdown categorie</div>
+                      {s.breakdown.map(({ cat, amt }) => {
+                        const pct = s.exp > 0 ? Math.round(amt / s.exp * 100) : 0;
+                        return (
+                          <div key={cat.id || cat.name} style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600 }}>{cat.icon} {cat.name}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700 }}>{fmt(amt)} <span style={{ color: "var(--ios-gray)", fontWeight: 500 }}>({pct}%)</span></span>
+                            </div>
+                            <div className="prog-track">
+                              <div className="prog-fill" style={{ width: `${pct}%`, background: cat.color }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {/* Transactions list */}
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ios-gray)", textTransform: "uppercase", letterSpacing: ".06em", margin: "12px 0 8px" }}>Transazioni</div>
+                  <div style={{ background: "var(--ios-fill)", borderRadius: 12, overflow: "hidden" }}>
+                    {s.txs.sort((a, b) => b.date.localeCompare(a.date)).map((tx, i) => {
+                      const cat = categories.find(c => c.id === tx.categoryId) || { icon: "📦", color: "#8E8E93" };
+                      return (
+                        <div key={tx.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderBottom: i < s.txs.length - 1 ? ".5px solid var(--ios-sep)" : "none" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 9, background: cat.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{cat.icon}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tx.description}</div>
+                            <div style={{ fontSize: 11, color: "var(--ios-gray)" }}>{fmtDate(tx.date)}</div>
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: tx.type === "entrata" ? "#34C759" : "#FF3B30", flexShrink: 0 }}>
+                            {tx.type === "entrata" ? "+" : "−"}{fmt(tx.amount)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TxSheet({ tx, categories, allTags, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState({
+    amount: tx?.amount?.toString() || "",
+    type: tx?.type || "uscita",
+    categoryId: tx?.categoryId || categories[0]?.id || "",
+    date: tx?.date || todayStr(),
+    paymentMethod: tx?.paymentMethod || "Carta di Debito",
+    description: tx?.description || "",
+    notes: tx?.notes || "",
+    tag: tx?.tag || "",
+  });
+  const [catSearch, setCatSearch] = useState("");
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // Smart suggestion: fires when description changes
+  const handleDescChange = (val) => {
+    set("description", val);
+    setSuggestionDismissed(false);
+    const s = suggestCategory(val, categories);
+    // Only suggest if different from current selection
+    setSuggestion(s && s.id !== form.categoryId ? s : null);
+  };
+
+  const acceptSuggestion = () => {
+    if (suggestion) { set("categoryId", suggestion.id); }
+    setSuggestion(null); setSuggestionDismissed(true);
+  };
+
+  const handleSave = () => {
+    const amt = parseFloat(form.amount.replace(",", "."));
+    if (!amt || amt <= 0) return alert("Inserisci un importo valido");
+    if (!form.description.trim()) return alert("Inserisci una descrizione");
+    onSave({ ...form, amount: amt, id: tx?.id || uid(), recurringId: tx?.recurringId, auto: tx?.auto });
+  };
+
+  const incomeCatIds = ["cat-stipendio","cat-freelance","cat-investimenti","cat-rimborso"];
+  const allDisplay = form.type === "entrata"
+    ? [...categories.filter(c => incomeCatIds.includes(c.id)), ...categories.filter(c => !incomeCatIds.includes(c.id))]
+    : [...categories.filter(c => !incomeCatIds.includes(c.id)), ...categories.filter(c => incomeCatIds.includes(c.id))];
+
+  const filteredCats = catSearch.trim()
+    ? allDisplay.filter(c => c.name.toLowerCase().includes(catSearch.toLowerCase()))
+    : allDisplay;
+
+  const selectedCat = categories.find(c => c.id === form.categoryId);
+
+  return (
+    <Sheet title={tx ? "Modifica" : "Nuova Transazione"} onClose={onClose} onSave={handleSave} saveLabel="Salva">
+      {/* Type toggle */}
+      <div className="type-pills">
+        <button className={`type-pill ${form.type === "uscita" ? "e" : ""}`} onClick={() => set("type", "uscita")}>↓ Uscita</button>
+        <button className={`type-pill ${form.type === "entrata" ? "i" : ""}`} onClick={() => set("type", "entrata")}>↑ Entrata</button>
+      </div>
+
+      {/* Amount */}
+      <div className="ios-input-group">
+        <div className="amount-wrap">
+          <span className="amount-sym">€</span>
+          <input className="ios-input" type="number" inputMode="decimal" placeholder="0,00"
+            value={form.amount} onChange={e => set("amount", e.target.value)} />
+        </div>
+      </div>
+
+      {/* Description — triggers suggestion */}
+      <div className="ios-input-group">
+        <label className="ios-input-label">Descrizione</label>
+        <input className="ios-input" type="text" placeholder="es. Pranzo al ristorante"
+          value={form.description} onChange={e => handleDescChange(e.target.value)} />
+      </div>
+
+      {/* Smart suggestion banner */}
+      {suggestion && !suggestionDismissed && (
+        <div className="suggest-banner" onClick={acceptSuggestion}>
+          <div className="suggest-icon-wrap" style={{ background: suggestion.color + "22" }}>
+            {suggestion.icon}
+          </div>
+          <div className="suggest-label">
+            <div className="suggest-label-top">✨ Categoria suggerita</div>
+            <div className="suggest-label-name">{suggestion.name}</div>
+          </div>
+          <button className="suggest-accept" onClick={e => { e.stopPropagation(); acceptSuggestion(); }}>
+            Usa
+          </button>
+        </div>
+      )}
+
+      {/* Category grid — ALL visible */}
+      <div className="ios-input-group">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <label className="ios-input-label" style={{ margin: 0 }}>
+            Categoria
+            {selectedCat && (
+              <span style={{ marginLeft: 8, background: selectedCat.color + "22", color: selectedCat.color, borderRadius: 8, padding: "2px 8px", fontSize: 12, fontWeight: 700 }}>
+                {selectedCat.icon} {selectedCat.name}
+              </span>
+            )}
+          </label>
+          <span style={{ fontSize: 11, color: "var(--ios-gray)" }}>{filteredCats.length} cat.</span>
+        </div>
+
+        {/* Search within categories */}
+        <div className="cat-search-bar">
+          <span style={{ fontSize: 14, color: "var(--ios-gray2)" }}>🔍</span>
+          <input placeholder="Cerca categoria..." value={catSearch} onChange={e => setCatSearch(e.target.value)} />
+          {catSearch && <span style={{ cursor: "pointer", fontSize: 13, color: "var(--ios-gray2)" }} onClick={() => setCatSearch("")}>✕</span>}
+        </div>
+
+        {/* Full grid — all categories visible */}
+        <div className="cat-grid-picker">
+          {filteredCats.map(c => {
+            const isActive = form.categoryId === c.id;
+            return (
+              <button
+                key={c.id}
+                className={`cat-grid-item ${isActive ? "active" : ""}`}
+                style={isActive
+                  ? { background: c.color, borderColor: c.color }
+                  : { borderColor: "var(--ios-sep)" }
+                }
+                onClick={() => { set("categoryId", c.id); setSuggestion(null); }}
+              >
+                <div className="cat-grid-item-icon">{c.icon}</div>
+                <div className="cat-grid-item-name" style={isActive ? { color: "#fff" } : {}}>
+                  {c.name}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Date */}
+      <div className="ios-input-group">
+        <label className="ios-input-label">Data</label>
+        <input className="ios-input" type="date" value={form.date} onChange={e => set("date", e.target.value)} />
+      </div>
+
+      {/* Payment method */}
+      <div className="ios-input-group">
+        <label className="ios-input-label">Metodo di Pagamento</label>
+        <select className="ios-input" value={form.paymentMethod} onChange={e => set("paymentMethod", e.target.value)}>
+          {METODI_PAGAMENTO.map(m => <option key={m}>{m}</option>)}
+        </select>
+      </div>
+
+      {/* Tag / Progetto */}
+      <TagInput
+        value={form.tag || ""}
+        onChange={v => set("tag", v)}
+        allTags={allTags}
+      />
+
+      {/* Notes */}
+      <div className="ios-input-group">
+        <label className="ios-input-label">Note (opzionale)</label>
+        <input className="ios-input" type="text" placeholder="Note aggiuntive..."
+          value={form.notes} onChange={e => set("notes", e.target.value)} />
+      </div>
+
+      <button className="ios-btn ios-btn-blue" onClick={handleSave} style={{ marginTop: 4, marginBottom: 10 }}>
+        {tx ? "Salva Modifiche" : "Aggiungi Transazione"}
+      </button>
+      {tx && !tx.auto && (
+        <button className="ios-btn ios-btn-red" onClick={() => onDelete(tx.id)}>
+          Elimina Transazione
+        </button>
+      )}
+    </Sheet>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// CATEGORY EDIT SHEET  (full emoji + color picker)
+// ─────────────────────────────────────────────────────────────
+function CatSheet({ cat, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState({
+    name: cat?.name || "",
+    icon: cat?.icon || "📦",
+    color: cat?.color || CAT_COLORS[0],
+  });
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSave = () => {
+    if (!form.name.trim()) return alert("Inserisci un nome");
+    onSave({ ...form, id: cat?.id || uid() });
+  };
+
+  return (
+    <Sheet title={cat ? "Modifica Categoria" : "Nuova Categoria"} onClose={onClose} onSave={handleSave} saveLabel="Salva">
+      <div className="ios-input-group">
+        <label className="ios-input-label">Nome</label>
+        <input className="ios-input" type="text" placeholder="Nome categoria"
+          value={form.name} onChange={e => set("name", e.target.value)} />
+      </div>
+
+      <div className="ios-input-group">
+        <label className="ios-input-label">Anteprima</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#fff", borderRadius: 12, boxShadow: "0 0 0 .5px var(--ios-sep)" }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: form.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{form.icon}</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{form.name || "Categoria"}</div>
+            <div style={{ fontSize: 12, color: "var(--ios-gray)", marginTop: 2 }}>Categoria personalizzata</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="ios-input-group">
+        <label className="ios-input-label">Icona Emoji</label>
+        <div className="emoji-grid">
+          {ALL_EMOJIS.map(em => (
+            <button key={em} className={`emoji-btn ${form.icon === em ? "sel" : ""}`} onClick={() => set("icon", em)}>{em}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="ios-input-group">
+        <label className="ios-input-label">Colore</label>
+        <div className="color-grid">
+          {CAT_COLORS.map(col => (
+            <div key={col} className={`color-dot ${form.color === col ? "sel" : ""}`}
+              style={{ background: col }} onClick={() => set("color", col)} />
+          ))}
+        </div>
+      </div>
+
+      <button className="ios-btn ios-btn-blue" onClick={handleSave} style={{ marginTop: 4, marginBottom: 10 }}>
+        {cat ? "Salva Categoria" : "Crea Categoria"}
+      </button>
+      {cat && (
+        <button className="ios-btn ios-btn-red" onClick={() => onDelete(cat.id)}>
+          Elimina Categoria
+        </button>
+      )}
+    </Sheet>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// RECURRING SHEET
+// ─────────────────────────────────────────────────────────────
+function RecSheet({ rec, categories, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState({
+    name: rec?.name || "",
+    amount: rec?.amount?.toString() || "",
+    frequency: rec?.frequency || "mensile",
+    startDate: rec?.startDate || todayStr(),
+    categoryId: rec?.categoryId || "cat-affitto",
+    enabled: rec?.enabled !== false,
+  });
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSave = () => {
+    const amt = parseFloat(form.amount.replace(",", "."));
+    if (!amt || amt <= 0) return alert("Inserisci un importo valido");
+    if (!form.name.trim()) return alert("Inserisci un nome");
+    onSave({ ...form, amount: amt, id: rec?.id || uid() });
+  };
+
+  return (
+    <Sheet title={rec ? "Modifica Ricorrente" : "Nuova Spesa Ricorrente"} onClose={onClose} onSave={handleSave} saveLabel="Salva">
+      <div className="ios-input-group">
+        <label className="ios-input-label">Nome</label>
+        <input className="ios-input" type="text" placeholder="es. Affitto, Netflix, Palestra"
+          value={form.name} onChange={e => set("name", e.target.value)} />
+      </div>
+      <div className="ios-input-group">
+        <label className="ios-input-label">Importo</label>
+        <div className="amount-wrap">
+          <span className="amount-sym" style={{ fontSize: 20 }}>€</span>
+          <input className="ios-input" type="number" inputMode="decimal" placeholder="0,00"
+            value={form.amount} onChange={e => set("amount", e.target.value)} style={{ fontSize: 22 }} />
+        </div>
+      </div>
+      <div className="ios-input-group">
+        <label className="ios-input-label">Frequenza</label>
+        <div className="seg-ctrl" style={{ margin: 0 }}>
+          {["mensile", "annuale"].map(f => (
+            <button key={f} className={`seg-btn ${form.frequency === f ? "active" : ""}`} onClick={() => set("frequency", f)} style={{ textTransform: "capitalize" }}>{f}</button>
+          ))}
+        </div>
+      </div>
+      <div className="ios-input-group">
+        <label className="ios-input-label">Data Inizio</label>
+        <input className="ios-input" type="date" value={form.startDate} onChange={e => set("startDate", e.target.value)} />
+      </div>
+      <div className="ios-input-group">
+        <label className="ios-input-label">Categoria</label>
+        <select className="ios-input" value={form.categoryId} onChange={e => set("categoryId", e.target.value)}>
+          {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+        </select>
+      </div>
+      <div className="ios-group" style={{ marginBottom: 14 }}>
+        <div className="ios-row">
+          <div className="ios-row-content"><div className="ios-row-title">Attivo</div></div>
+          <label className="ios-toggle">
+            <input type="checkbox" checked={form.enabled} onChange={e => set("enabled", e.target.checked)} />
+            <div className="ios-toggle-track" />
+          </label>
+        </div>
+      </div>
+      <button className="ios-btn ios-btn-blue" onClick={handleSave} style={{ marginBottom: 10 }}>
+        {rec ? "Salva" : "Aggiungi Spesa Ricorrente"}
+      </button>
+      {rec && <button className="ios-btn ios-btn-red" onClick={() => onDelete(rec.id)}>Elimina</button>}
+    </Sheet>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// AVATAR OPTIONS
+// ─────────────────────────────────────────────────────────────
+const AVATAR_EMOJIS = ["😊","😎","🧑","👨","👩","🧔","👦","👧","🧑‍💼","👨‍💼","👩‍💼","🧑‍🎨","🦸","🧙","🐻","🦊","🐯","🐼","🦁","🐸"];
+const AVATAR_BG = ["#007AFF","#34C759","#FF3B30","#FF9500","#AF52DE","#FF2D55","#00C7BE","#FFCC00"];
+
+// ─────────────────────────────────────────────────────────────
+// ONBOARDING SCREEN
+// ─────────────────────────────────────────────────────────────
+function Onboarding({ onComplete }) {
+  const [nome, setNome] = useState("");
+  const [emoji, setEmoji] = useState("😊");
+  const [bg, setBg] = useState("#007AFF");
+  const [step, setStep] = useState(1); // 1=name, 2=avatar
+
+  const handleNext = () => {
+    if (!nome.trim()) return alert("Inserisci il tuo nome");
+    setStep(2);
+  };
+  const handleDone = () => onComplete({ nome: nome.trim(), emoji, bg });
+
+  return (
+    <div className="onboard-screen">
+      <div className="onboard-logo"><span style={{color:"rgba(255,255,255,.7)"}}>Super</span>AD<span style={{color:"rgba(255,255,255,.7)"}}>Wallet</span></div>
+      <div className="onboard-sub">{step === 1 ? "Benvenuto! Come ti chiami?" : "Scegli il tuo avatar"}</div>
+
+      {/* Avatar preview */}
+      <div className="onboard-avatar-wrap">
+        <div className="onboard-avatar" style={{ background: bg }}>
+          <span style={{ fontSize: 52 }}>{emoji}</span>
+        </div>
+      </div>
+
+      {step === 1 && (
+        <>
+          <input className="onboard-input" type="text" placeholder="Il tuo nome..."
+            value={nome} onChange={e => setNome(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleNext()} autoFocus />
+          <button className="onboard-btn" onClick={handleNext}>Continua →</button>
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          {/* Emoji grid */}
+          <div className="avatar-grid" style={{ marginBottom: 16, width: "100%" }}>
+            {AVATAR_EMOJIS.map(em => (
+              <div key={em} className={`avatar-opt ${emoji === em ? "sel" : ""}`}
+                style={{ background: bg + "33" }} onClick={() => setEmoji(em)}>
+                {em}
+              </div>
+            ))}
+          </div>
+          {/* Color row */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", justifyContent: "center" }}>
+            {AVATAR_BG.map(c => (
+              <div key={c} onClick={() => setBg(c)} style={{
+                width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer",
+                border: bg === c ? "3px solid #fff" : "3px solid transparent", transition: "transform .1s"
+              }} />
+            ))}
+          </div>
+          <button className="onboard-btn" onClick={handleDone}>Inizia a usare l'app ✓</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROFILE EDIT SHEET
+// ─────────────────────────────────────────────────────────────
+function ProfileSheet({ profile, onSave, onClose }) {
+  const [form, setForm] = useState({ ...profile });
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  return (
+    <Sheet title="Il tuo profilo" onClose={onClose} onSave={() => { onSave(form); onClose(); }} saveLabel="Salva">
+      {/* Avatar preview */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
+        <div style={{ width: 80, height: 80, borderRadius: "50%", background: form.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42, marginBottom: 8, boxShadow: "0 4px 20px rgba(0,0,0,.15)" }}>
+          {form.emoji}
+        </div>
+        <div style={{ fontWeight: 800, fontSize: 18 }}>{form.nome || "Nome"}</div>
+      </div>
+
+      <div className="ios-input-group">
+        <label className="ios-input-label">Nome</label>
+        <input className="ios-input" type="text" value={form.nome} onChange={e => set("nome", e.target.value)} placeholder="Il tuo nome" />
+      </div>
+
+      <div className="ios-input-group">
+        <label className="ios-input-label">Emoji avatar</label>
+        <div className="avatar-grid">
+          {AVATAR_EMOJIS.map(em => (
+            <div key={em} className={`avatar-opt ${form.emoji === em ? "sel" : ""}`}
+              style={{ background: form.bg + "22" }} onClick={() => set("emoji", em)}>{em}</div>
+          ))}
+        </div>
+      </div>
+
+      <div className="ios-input-group">
+        <label className="ios-input-label">Colore avatar</label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+          {AVATAR_BG.map(c => (
+            <div key={c} onClick={() => set("bg", c)} style={{
+              width: 30, height: 30, borderRadius: "50%", background: c, cursor: "pointer",
+              border: form.bg === c ? `3px solid var(--ios-label)` : "3px solid transparent"
+            }} />
+          ))}
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────────────────────────
+function Dashboard({ transactions, categories, budgets, profile, onOpenTx, onEditProfile }) {
+  const [period, setPeriod] = useState("mese");
+
+  const rangeStart = { oggi: todayStr(), settimana: weekStart(), mese: monthStart(), anno: yearStart() }[period];
+  const filtered = useMemo(() => transactions.filter(t => t.date >= rangeStart && t.date <= todayStr()), [transactions, period]);
+
+  const totalInc = filtered.filter(t => t.type === "entrata").reduce((s, t) => s + t.amount, 0);
+  const totalExp = filtered.filter(t => t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+  const balance = transactions.filter(t => t.type === "entrata").reduce((s, t) => s + t.amount, 0)
+                - transactions.filter(t => t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+
+  const pieData = useMemo(() => {
+    const m = {};
+    filtered.filter(t => t.type === "uscita").forEach(t => { m[t.categoryId] = (m[t.categoryId] || 0) + t.amount; });
+    return Object.entries(m).map(([id, val]) => {
+      const cat = categories.find(c => c.id === id) || CATEGORY_PRESETS[CATEGORY_PRESETS.length - 1];
+      return { name: cat.name, value: Math.round(val * 100) / 100, color: cat.color, icon: cat.icon };
+    }).sort((a, b) => b.value - a.value).slice(0, 7);
+  }, [filtered, categories]);
+
+  const lineData = useMemo(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const ds = d.toISOString().split("T")[0];
+      const label = d.toLocaleDateString("it-IT", { weekday: "short" });
+      const exp = transactions.filter(t => t.date === ds && t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+      days.push({ label, uscite: Math.round(exp * 100) / 100 });
+    }
+    return days;
+  }, [transactions]);
+
+  const recent = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+
+  const budgetAlerts = budgets.filter(b => {
+    const spent = transactions.filter(t => t.date >= monthStart() && t.categoryId === b.categoryId && t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+    return spent >= b.limit * 0.8;
+  });
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Buongiorno";
+    if (h < 18) return "Buon pomeriggio";
+    return "Buonasera";
+  };
+
+  return (
+    <div className="scroll-area">
+      {/* Profile header */}
+      <div className="profile-header">
+        <div className="profile-avatar" style={{ background: profile?.bg || "#007AFF" }} onClick={onEditProfile}>
+          <span style={{ fontSize: 24 }}>{profile?.emoji || "😊"}</span>
+        </div>
+        <div className="profile-greeting">
+          <div className="profile-ciao">{greeting()},</div>
+          <div className="profile-name">{profile?.nome || "Utente"} 👋</div>
+        </div>
+        <button className="profile-settings-btn" onClick={onEditProfile}>✏️</button>
+      </div>
+
+      {/* Balance card */}
+      <div className="balance-card">
+        <div className="balance-label">Saldo Totale</div>
+        <div className="balance-amount">{fmt(balance)}</div>
+        <div className="balance-pills">
+          <div className="balance-pill">
+            <div className="balance-pill-label">↑ ENTRATE</div>
+            <div className="balance-pill-val">{fmtShort(totalInc)}</div>
+          </div>
+          <div className="balance-pill">
+            <div className="balance-pill-label">↓ USCITE</div>
+            <div className="balance-pill-val">{fmtShort(totalExp)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Period chips */}
+      <div className="period-scroll">
+        {[["oggi", "Oggi"], ["settimana", "Settimana"], ["mese", "Mese"], ["anno", "Anno"]].map(([v, l]) => (
+          <button key={v} className={`period-chip ${period === v ? "active" : ""}`} onClick={() => setPeriod(v)}>{l}</button>
+        ))}
+      </div>
+
+      {/* Budget alert */}
+      {budgetAlerts.length > 0 && (
+        <div className="ios-section" style={{ marginTop: 12 }}>
+          <div style={{ background: "rgba(255,149,0,.1)", border: ".5px solid rgba(255,149,0,.3)", borderRadius: 12, padding: "12px 16px" }}>
+            <div style={{ fontWeight: 700, color: "#FF9500", marginBottom: 4 }}>⚠️ Attenzione Budget</div>
+            {budgetAlerts.map(b => {
+              const cat = categories.find(c => c.id === b.categoryId);
+              const spent = transactions.filter(t => t.date >= monthStart() && t.categoryId === b.categoryId && t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+              return <div key={b.categoryId} style={{ fontSize: 13, color: "var(--ios-gray)" }}>{cat?.icon} {cat?.name}: {fmt(spent)} / {fmt(b.limit)}</div>;
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Pie chart */}
+      {pieData.length > 0 && (
+        <div className="ios-section" style={{ marginTop: 12 }}>
+          <div className="chart-card">
+            <div className="chart-title">Spese per Categoria</div>
+            <div className="chart-h-sm">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={65} dataKey="value" paddingAngle={3}>
+                    {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "#fff", border: "none", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,.12)", fontSize: 13 }} formatter={v => [fmt(v)]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            {pieData.map(e => (
+              <div key={e.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: e.color }} />
+                  <span style={{ fontSize: 13 }}>{e.icon} {e.name}</span>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ios-gray)" }}>{fmt(e.value)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Line chart */}
+          <div className="chart-card">
+            <div className="chart-title">Ultimi 7 giorni</div>
+            <div className="chart-h">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={lineData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,.1)" />
+                  <XAxis dataKey="label" tick={{ fill: "#8E8E93", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#8E8E93", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: "#fff", border: "none", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,.12)", fontSize: 13 }} formatter={v => [fmt(v), "Uscite"]} />
+                  <Line type="monotone" dataKey="uscite" stroke="#FF3B30" strokeWidth={2.5} dot={{ r: 4, fill: "#FF3B30" }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent tx */}
+      <div className="ios-section" style={{ marginTop: 4 }}>
+        <div className="ios-section-label">Recenti</div>
+        {recent.length === 0
+          ? <div className="empty-state"><div className="empty-icon">💸</div><div className="empty-title">Nessuna transazione</div><div className="empty-sub">Tocca + per aggiungere la tua prima transazione</div></div>
+          : <div className="ios-group">{recent.map((tx, i) => <TxCell key={tx.id} tx={tx} categories={categories} onClick={onOpenTx} delay={i} />)}</div>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MOVIMENTI (history)
+// ─────────────────────────────────────────────────────────────
+function Movimenti({ transactions, categories, onOpenTx }) {
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("tutti");
+  const [filterCat, setFilterCat] = useState("all");
+
+  const filtered = useMemo(() => {
+    return [...transactions]
+      .filter(t => {
+        if (filterType === "uscite" && t.type !== "uscita") return false;
+        if (filterType === "entrate" && t.type !== "entrata") return false;
+        if (filterCat !== "all" && t.categoryId !== filterCat) return false;
+        if (search && !t.description.toLowerCase().includes(search.toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [transactions, filterType, filterCat, search]);
+
+  const exportCSV = () => {
+    const rows = [["Data", "Descrizione", "Categoria", "Tipo", "Importo", "Metodo", "Note"]];
+    filtered.forEach(t => {
+      const cat = categories.find(c => c.id === t.categoryId)?.name || "Altro";
+      rows.push([t.date, t.description, cat, t.type, t.amount, t.paymentMethod, t.notes || ""]);
+    });
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `SuperADWallet_${todayStr()}.csv`; a.click();
+  };
+
+  // Group by date
+  const grouped = useMemo(() => {
+    const g = {};
+    filtered.forEach(t => { if (!g[t.date]) g[t.date] = []; g[t.date].push(t); });
+    return Object.entries(g).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filtered]);
+
+  return (
+    <div className="scroll-area">
+      <div className="ios-search-bar">
+        <span>🔍</span>
+        <input placeholder="Cerca movimenti..." value={search} onChange={e => setSearch(e.target.value)} />
+        {search && <span style={{ cursor: "pointer", color: "var(--ios-gray)" }} onClick={() => setSearch("")}>✕</span>}
+      </div>
+
+      <div className="seg-ctrl">
+        {[["tutti", "Tutti"], ["uscite", "Uscite"], ["entrate", "Entrate"]].map(([v, l]) => (
+          <button key={v} className={`seg-btn ${filterType === v ? "active" : ""}`} onClick={() => setFilterType(v)}>{l}</button>
+        ))}
+      </div>
+
+      <div style={{ padding: "0 16px 8px" }}>
+        <select className="ios-input" style={{ fontSize: 14, padding: "10px 14px" }} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+          <option value="all">Tutte le categorie</option>
+          {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+        </select>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 20px 6px" }}>
+        <span style={{ fontSize: 13, color: "var(--ios-gray)" }}>{filtered.length} moviment{filtered.length !== 1 ? "i" : "o"}</span>
+        <button onClick={exportCSV} style={{ background: "none", border: "none", color: "var(--ios-blue)", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          <SFIcon name="download" size={14} color="var(--ios-blue)" /> CSV
+        </button>
+      </div>
+
+      {grouped.length === 0
+        ? <div className="empty-state"><div className="empty-icon">🔍</div><div className="empty-title">Nessun risultato</div><div className="empty-sub">Prova a modificare i filtri di ricerca</div></div>
+        : grouped.map(([date, txs]) => (
+          <div className="ios-section" key={date}>
+            <div className="ios-section-label" style={{ marginTop: 10 }}>
+              {fmtDateFull(date)}
+              <span style={{ float: "right", color: "var(--ios-red)", fontWeight: 700 }}>
+                −{fmt(txs.filter(t => t.type === "uscita").reduce((s, t) => s + t.amount, 0))}
+              </span>
+            </div>
+            <div className="ios-group">
+              {txs.map((tx, i) => <TxCell key={tx.id} tx={tx} categories={categories} onClick={onOpenTx} delay={i} />)}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// RICORRENTI
+// ─────────────────────────────────────────────────────────────
+function Ricorrenti({ recurrings, categories, onAdd, onEdit }) {
+  const mensili = recurrings.filter(r => r.frequency === "mensile");
+  const annuali = recurrings.filter(r => r.frequency === "annuale");
+  const totMensile = mensili.filter(r => r.enabled).reduce((s, r) => s + r.amount, 0);
+  const totAnnuale = annuali.filter(r => r.enabled).reduce((s, r) => s + r.amount, 0);
+
+  const RecCard = ({ r }) => {
+    const cat = categories.find(c => c.id === r.categoryId) || CATEGORY_PRESETS[CATEGORY_PRESETS.length - 1];
+    return (
+      <div className="ios-row" onClick={() => onEdit(r)}>
+        <div className="ios-row-icon" style={{ background: cat.color + "22" }}>{cat.icon}</div>
+        <div className="ios-row-content">
+          <div className="ios-row-title" style={{ opacity: r.enabled ? 1 : .4 }}>{r.name}</div>
+          <div className="ios-row-sub">Da {fmtDate(r.startDate)} · <span className={`freq-badge freq-${r.frequency}`}>{r.frequency}</span></div>
+        </div>
+        <div className="ios-row-right">
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontWeight: 700, color: "var(--ios-red)", fontSize: 15 }}>−{fmt(r.amount)}</div>
+            {!r.enabled && <div style={{ fontSize: 11, color: "var(--ios-gray)" }}>disabilitato</div>}
+          </div>
+          <div className="ios-chevron">›</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="scroll-area">
+      <div style={{ display: "flex", gap: 10, padding: "0 16px 12px" }}>
+        <div style={{ flex: 1, background: "var(--ios-surface)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ fontSize: 12, color: "var(--ios-gray)", fontWeight: 600 }}>MENSILE FISSO</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ios-red)", marginTop: 4 }}>−{fmt(totMensile)}</div>
+        </div>
+        <div style={{ flex: 1, background: "var(--ios-surface)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ fontSize: 12, color: "var(--ios-gray)", fontWeight: 600 }}>ANNUALE FISSO</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ios-orange)", marginTop: 4 }}>−{fmt(totAnnuale)}</div>
+        </div>
+      </div>
+
+      <div style={{ margin: "0 16px 14px", background: "rgba(0,122,255,.07)", borderRadius: 12, padding: "12px 14px", fontSize: 13, color: "var(--ios-gray)", lineHeight: 1.5 }}>
+        🔄 Le spese ricorrenti vengono aggiunte automaticamente come transazioni nelle date di scadenza.
+      </div>
+
+      {mensili.length > 0 && (
+        <div className="ios-section">
+          <div className="ios-section-label">Mensili</div>
+          <div className="ios-group">{mensili.map(r => <RecCard key={r.id} r={r} />)}</div>
+        </div>
+      )}
+      {annuali.length > 0 && (
+        <div className="ios-section">
+          <div className="ios-section-label">Annuali</div>
+          <div className="ios-group">{annuali.map(r => <RecCard key={r.id} r={r} />)}</div>
+        </div>
+      )}
+      {recurrings.length === 0 && (
+        <div className="empty-state"><div className="empty-icon">🔁</div><div className="empty-title">Nessuna spesa ricorrente</div><div className="empty-sub">Aggiungi affitto, abbonamenti,<br />utenze e altre spese fisse</div></div>
+      )}
+      <div style={{ padding: "12px 16px" }}>
+        <button className="ios-btn ios-btn-blue" onClick={onAdd}>+ Aggiungi Spesa Ricorrente</button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// RAPPORTI
+// ─────────────────────────────────────────────────────────────
+function Rapporti({ transactions, categories }) {
+  const [period, setPeriod] = useState("mese");
+  const start = { oggi: todayStr(), settimana: weekStart(), mese: monthStart(), anno: yearStart() }[period];
+  const filtered = transactions.filter(t => t.date >= start && t.date <= todayStr());
+  const exp = filtered.filter(t => t.type === "uscita");
+  const inc = filtered.filter(t => t.type === "entrata");
+  const totExp = exp.reduce((s, t) => s + t.amount, 0);
+  const totInc = inc.reduce((s, t) => s + t.amount, 0);
+
+  const bycat = useMemo(() => {
+    const m = {};
+    exp.forEach(t => { m[t.categoryId] = (m[t.categoryId] || 0) + t.amount; });
+    return Object.entries(m).map(([id, amt]) => {
+      const cat = categories.find(c => c.id === id) || CATEGORY_PRESETS[CATEGORY_PRESETS.length - 1];
+      return { ...cat, amt, pct: totExp > 0 ? Math.round(amt / totExp * 100) : 0 };
+    }).sort((a, b) => b.amt - a.amt);
+  }, [exp, categories, totExp]);
+
+  return (
+    <div className="scroll-area">
+      <div className="seg-ctrl">
+        {[["oggi", "Oggi"], ["settimana", "Sett."], ["mese", "Mese"], ["anno", "Anno"]].map(([v, l]) => (
+          <button key={v} className={`seg-btn ${period === v ? "active" : ""}`} onClick={() => setPeriod(v)}>{l}</button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, padding: "0 16px 12px" }}>
+        {[["Entrate", fmt(totInc), "#34C759"], ["Uscite", fmt(totExp), "#FF3B30"], ["Saldo", fmt(totInc - totExp), totInc - totExp >= 0 ? "#34C759" : "#FF3B30"]].map(([l, v, c]) => (
+          <div key={l} style={{ background: "var(--ios-surface)", borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--ios-gray)", fontWeight: 600 }}>{l.toUpperCase()}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: c, marginTop: 4, wordBreak: "break-all" }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {bycat.length > 0 ? (
+        <div className="ios-section">
+          <div className="ios-section-label">Uscite per Categoria</div>
+          <div className="ios-group">
+            {bycat.map(c => (
+              <div key={c.id} style={{ padding: "12px 16px", borderBottom: ".5px solid var(--ios-sep)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>{c.icon} {c.name}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>{fmt(c.amt)} <span style={{ color: "var(--ios-gray)", fontWeight: 500, fontSize: 12 }}>({c.pct}%)</span></span>
+                </div>
+                <div className="prog-track">
+                  <div className="prog-fill" style={{ width: `${c.pct}%`, background: c.color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="empty-state"><div className="empty-icon">📊</div><div className="empty-title">Nessun dato</div><div className="empty-sub">Nessuna spesa in questo periodo</div></div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// IMPOSTAZIONI
+// ─────────────────────────────────────────────────────────────
+function Impostazioni({ categories, budgets, transactions, onCatSave, onCatDelete, onBudgetSave, onBudgetDelete }) {
+  const [showCatSheet, setShowCatSheet] = useState(false);
+  const [editCat, setEditCat] = useState(null);
+  const [showBudgetSheet, setShowBudgetSheet] = useState(false);
+  const [editBudget, setEditBudget] = useState(null);
+  const [budgetForm, setBudgetForm] = useState({ categoryId: "", limit: "" });
+  const [catSearch, setCatSearch] = useState("");
+
+  const openCat = (c = null) => { setEditCat(c); setShowCatSheet(true); };
+  const openBudget = (b = null) => {
+    setEditBudget(b);
+    setBudgetForm(b ? { categoryId: b.categoryId, limit: b.limit.toString() } : { categoryId: categories[0]?.id || "", limit: "" });
+    setShowBudgetSheet(true);
+  };
+  const saveBudget = () => {
+    const lim = parseFloat(budgetForm.limit.replace(",", "."));
+    if (!lim || lim <= 0) return alert("Inserisci un budget valido");
+    onBudgetSave({ ...budgetForm, limit: lim, id: editBudget?.id || uid() });
+    setShowBudgetSheet(false);
+  };
+  const exportAll = () => {
+    const rows = [["Data", "Descrizione", "Categoria", "Tipo", "Importo", "Metodo", "Note"]];
+    transactions.forEach(t => {
+      const cat = categories.find(c => c.id === t.categoryId)?.name || "Altro";
+      rows.push([t.date, t.description, cat, t.type, t.amount, t.paymentMethod, t.notes || ""]);
+    });
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `SuperADWallet_export_${todayStr()}.csv`; a.click();
+  };
+
+  const filteredCats = categories.filter(c => c.name.toLowerCase().includes(catSearch.toLowerCase()));
+
+  return (
+    <div className="scroll-area">
+      {/* Categories */}
+      <div className="ios-section">
+        <div className="ios-section-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Categorie ({categories.length})</span>
+          <button onClick={() => openCat()} style={{ background: "none", border: "none", color: "var(--ios-blue)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nuova</button>
+        </div>
+        <div className="ios-search-bar" style={{ margin: "0 0 8px" }}>
+          <span>🔍</span>
+          <input placeholder="Cerca categorie..." value={catSearch} onChange={e => setCatSearch(e.target.value)} />
+        </div>
+        <div className="ios-group">
+          {filteredCats.map(c => (
+            <div key={c.id} className="ios-row" onClick={() => openCat(c)}>
+              <div className="ios-row-icon" style={{ background: c.color + "22" }}>{c.icon}</div>
+              <div className="ios-row-content"><div className="ios-row-title">{c.name}</div></div>
+              <div className="ios-row-right"><div className="ios-chevron">›</div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Budgets */}
+      <div className="ios-section">
+        <div className="ios-section-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Budget Mensili</span>
+          <button onClick={() => openBudget()} style={{ background: "none", border: "none", color: "var(--ios-blue)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Aggiungi</button>
+        </div>
+        {budgets.length === 0 && <div style={{ fontSize: 13, color: "var(--ios-gray)", padding: "0 4px 8px" }}>Imposta un budget per monitorare le spese mensili per categoria.</div>}
+        {budgets.length > 0 && (
+          <div className="ios-group">
+            {budgets.map(b => {
+              const cat = categories.find(c => c.id === b.categoryId);
+              const spent = transactions.filter(t => t.date >= monthStart() && t.categoryId === b.categoryId && t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+              const pct = b.limit > 0 ? Math.min(100, Math.round(spent / b.limit * 100)) : 0;
+              const col = pct >= 100 ? "#FF3B30" : pct >= 80 ? "#FF9500" : "#34C759";
+              return (
+                <div key={b.id} className="ios-row" onClick={() => openBudget(b)}>
+                  <div className="ios-row-icon" style={{ background: (cat?.color || "#8E8E93") + "22" }}>{cat?.icon || "📦"}</div>
+                  <div className="ios-row-content">
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontWeight: 600, fontSize: 15 }}>{cat?.name}</span>
+                      <span style={{ fontSize: 13, color: col, fontWeight: 700 }}>{pct}%</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--ios-gray)", marginBottom: 5 }}>{fmt(spent)} / {fmt(b.limit)}</div>
+                    <div className="prog-track"><div className="prog-fill" style={{ width: `${pct}%`, background: col }} /></div>
+                  </div>
+                  <div className="ios-chevron" style={{ marginLeft: 10 }}>›</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Data */}
+      <div className="ios-section">
+        <div className="ios-section-label">Dati e Privacy</div>
+        <div className="ios-group">
+          <div className="ios-row" onClick={exportAll}>
+            <div className="ios-row-icon" style={{ background: "rgba(0,122,255,.12)" }}>📤</div>
+            <div className="ios-row-content"><div className="ios-row-title">Esporta CSV</div><div className="ios-row-sub">{transactions.length} transazioni</div></div>
+            <div className="ios-chevron">›</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ textAlign: "center", padding: "20px 0 8px", color: "var(--ios-gray)", fontSize: 12 }}>
+        SuperADWallet · Tutti i dati salvati localmente
+      </div>
+
+      {/* SHEETS */}
+      {showCatSheet && (
+        <CatSheet cat={editCat}
+          onSave={c => { onCatSave(c); setShowCatSheet(false); }}
+          onDelete={id => { onCatDelete(id); setShowCatSheet(false); }}
+          onClose={() => setShowCatSheet(false)} />
+      )}
+      {showBudgetSheet && (
+        <Sheet title={editBudget ? "Modifica Budget" : "Nuovo Budget"} onClose={() => setShowBudgetSheet(false)} onSave={saveBudget} saveLabel="Salva">
+          <div className="ios-input-group">
+            <label className="ios-input-label">Categoria</label>
+            <select className="ios-input" value={budgetForm.categoryId} onChange={e => setBudgetForm(p => ({ ...p, categoryId: e.target.value }))}>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            </select>
+          </div>
+          <div className="ios-input-group">
+            <label className="ios-input-label">Limite Mensile</label>
+            <div className="amount-wrap">
+              <span className="amount-sym" style={{ fontSize: 20 }}>€</span>
+              <input className="ios-input" type="number" inputMode="decimal" placeholder="0,00" style={{ fontSize: 22 }}
+                value={budgetForm.limit} onChange={e => setBudgetForm(p => ({ ...p, limit: e.target.value }))} />
+            </div>
+          </div>
+          <button className="ios-btn ios-btn-blue" onClick={saveBudget} style={{ marginBottom: 10 }}>Salva Budget</button>
+          {editBudget && <button className="ios-btn ios-btn-red" onClick={() => { onBudgetDelete(editBudget.id); setShowBudgetSheet(false); }}>Elimina Budget</button>}
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ROOT
+// ─────────────────────────────────────────────────────────────
+function App() {
+  injectCSS(CSS);
+  const [tab, setTab] = useState("dashboard");
+  const [categories, setCategories] = useState(() => load("saw_cats", CATEGORY_PRESETS));
+  const [recurrings, setRecurrings] = useState(() => load("saw_rec", []));
+  const [budgets, setBudgets] = useState(() => load("saw_budgets", []));
+  const [transactions, setTransactions] = useState(() => load("saw_tx", []));
+  const [profile, setProfile] = useState(() => load("saw_profile", null));
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
+
+  const [showTxSheet, setShowTxSheet] = useState(false);
+  const [editTx, setEditTx] = useState(null);
+  const [showRecSheet, setShowRecSheet] = useState(false);
+  const [editRec, setEditRec] = useState(null);
+
+  // Auto-process recurring
+  useEffect(() => {
+    const newTx = processRecurring(recurrings, transactions);
+    if (newTx.length > 0) {
+      setTransactions(prev => { const u = [...prev, ...newTx]; save("saw_tx", u); return u; });
+    }
+  }, [recurrings]);
+
+  useEffect(() => save("saw_cats", categories), [categories]);
+  useEffect(() => save("saw_rec", recurrings), [recurrings]);
+  useEffect(() => save("saw_budgets", budgets), [budgets]);
+  useEffect(() => { if (profile) save("saw_profile", profile); }, [profile]);
+
+  const saveTx = useCallback(tx => {
+    setTransactions(prev => { const i = prev.findIndex(t => t.id === tx.id); const u = i >= 0 ? prev.map(t => t.id === tx.id ? tx : t) : [...prev, tx]; save("saw_tx", u); return u; });
+    setShowTxSheet(false); setEditTx(null);
+  }, []);
+  const deleteTx = useCallback(id => {
+    setTransactions(prev => { const u = prev.filter(t => t.id !== id); save("saw_tx", u); return u; });
+    setShowTxSheet(false); setEditTx(null);
+  }, []);
+  const saveCat = useCallback(cat => setCategories(prev => { const i = prev.findIndex(c => c.id === cat.id); return i >= 0 ? prev.map(c => c.id === cat.id ? cat : c) : [...prev, cat]; }), []);
+  const deleteCat = useCallback(id => setCategories(prev => prev.filter(c => c.id !== id)), []);
+  const saveRec = useCallback(rec => { setRecurrings(prev => { const i = prev.findIndex(r => r.id === rec.id); return i >= 0 ? prev.map(r => r.id === rec.id ? rec : r) : [...prev, rec]; }); setShowRecSheet(false); setEditRec(null); }, []);
+  const deleteRec = useCallback(id => { setRecurrings(prev => prev.filter(r => r.id !== id)); setShowRecSheet(false); setEditRec(null); }, []);
+  const saveBudget = useCallback(b => setBudgets(prev => { const i = prev.findIndex(x => x.categoryId === b.categoryId); return i >= 0 ? prev.map(x => x.categoryId === b.categoryId ? b : x) : [...prev, b]; }), []);
+  const deleteBudget = useCallback(id => setBudgets(prev => prev.filter(b => b.id !== id)), []);
+
+  const openTx = tx => { setEditTx(tx); setShowTxSheet(true); };
+  const allTags = useMemo(() => [...new Set(transactions.map(t => t.tag).filter(Boolean))].sort(), [transactions]);
+
+  const NAV = [
+    { id: "dashboard",   label: "Home",      icon: "home"   },
+    { id: "movimenti",   label: "Movimenti", icon: "list"   },
+    { id: "progetti",    label: "Progetti",  icon: "tag"    },
+    { id: "rapporti",    label: "Rapporti",  icon: "chart"  },
+    { id: "impostazioni",label: "Impost.",   icon: "gear"   },
+  ];
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  const pageTitle = { dashboard: "SuperADWallet", movimenti: "Movimenti", progetti: "Progetti & Tag", rapporti: "Rapporti", impostazioni: "Impostazioni" }[tab];
+
+  // Show onboarding if no profile yet
+  if (!profile) {
+    return (
+      <div className="phone">
+        <Onboarding onComplete={p => { setProfile(p); save("saw_profile", p); }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="phone">
+      {/* Status bar */}
+      <div className="status-bar">
+        <div className="status-time">{timeStr}</div>
+        <div style={{ width: 80, height: 30, background: "#000", borderRadius: 20, position: "absolute", left: "50%", transform: "translateX(-50%)", top: 8 }} />
+        <div className="status-icons">
+          <svg viewBox="0 0 24 24"><path d="M1 8l4 4 4-4 4 4 4-4 4 4" stroke="#000" strokeWidth="2" strokeLinecap="round" fill="none" /></svg>
+          <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01" stroke="#000" strokeWidth="2" strokeLinecap="round" fill="none" /></svg>
+          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="11" rx="2" stroke="#000" strokeWidth="2" fill="none" /><path d="M22 11v3" stroke="#000" strokeWidth="2" strokeLinecap="round" /><rect x="4" y="9" width="12" height="7" rx="1" fill="#000" /></svg>
+        </div>
+      </div>
+
+      {/* Page title — hidden on dashboard (replaced by profile header) */}
+      {tab !== "dashboard" && (
+        <div style={{ padding: "2px 20px 10px", background: "var(--ios-bg)" }}>
+          <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-.5px", color: "var(--ios-label)" }}>{pageTitle}</div>
+        </div>
+      )}
+
+      {/* Content */}
+      {tab === "dashboard"    && <Dashboard    transactions={transactions} categories={categories} budgets={budgets} profile={profile} onOpenTx={openTx} onEditProfile={() => setShowProfileSheet(true)} />}
+      {tab === "movimenti"    && <Movimenti    transactions={transactions} categories={categories} onOpenTx={openTx} />}
+      {tab === "progetti"     && <Progetti     transactions={transactions} categories={categories} />}
+      {tab === "rapporti"     && <Rapporti     transactions={transactions} categories={categories} />}
+      {tab === "impostazioni" && <Impostazioni categories={categories} budgets={budgets} transactions={transactions} onCatSave={saveCat} onCatDelete={deleteCat} onBudgetSave={saveBudget} onBudgetDelete={deleteBudget} />}
+
+      {/* FAB */}
+      <button className="fab" onClick={() => { setEditTx(null); setShowTxSheet(true); }}>＋</button>
+
+      {/* Bottom nav */}
+      <nav className="nav-bar">
+        {NAV.map(n => (
+          <button key={n.id} className={`nav-item ${tab === n.id ? "active" : ""}`} onClick={() => setTab(n.id)}>
+            <div className="nav-icon"><SFIcon name={n.icon} size={20} color={tab === n.id ? "#007AFF" : "#8E8E93"} /></div>
+            <div className="nav-label">{n.label}</div>
+          </button>
+        ))}
+      </nav>
+
+      {/* Sheets */}
+      {showTxSheet    && <TxSheet      tx={editTx}   categories={categories} allTags={allTags} onSave={saveTx}  onDelete={deleteTx}  onClose={() => { setShowTxSheet(false);  setEditTx(null);  }} />}
+      {showRecSheet   && <RecSheet     rec={editRec}  categories={categories}                  onSave={saveRec} onDelete={deleteRec} onClose={() => { setShowRecSheet(false); setEditRec(null); }} />}
+      {showProfileSheet && <ProfileSheet profile={profile} onSave={p => { setProfile(p); save("saw_profile", p); }} onClose={() => setShowProfileSheet(false)} />}
+    </div>
+  );
+}
+
+    // ── Mount ───────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+
+    // ── Service Worker for offline/PWA ──────────────────────────
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE = 'saw-v1';
+        const ASSETS = [location.href];
+        self.addEventListener('install', e => e.waitUntil(
+          caches.open(CACHE).then(c => c.addAll(ASSETS))
+        ));
+        self.addEventListener('fetch', e => e.respondWith(
+          caches.match(e.request).then(r => r || fetch(e.request))
+        ));
+      `;
+      const blob = new Blob([swCode], {type: 'application/javascript'});
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch(() => {});
+    }
+  </script>
+</body>
+</html>
