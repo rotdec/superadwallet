@@ -1,3 +1,4 @@
+// SuperADWallet v7 - Sat May  9 09:28:08 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
