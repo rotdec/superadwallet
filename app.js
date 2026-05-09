@@ -1,4 +1,4 @@
-// SuperADWallet v8 - Sat May  9 09:35:55 UTC 2026
+// SuperADWallet v9 - Sat May  9 09:44:30 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -296,31 +296,33 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
       const sun = new Date(mon);
       sun.setDate(mon.getDate() + 6);
       const ds = (s) => s.toISOString().split("T")[0];
-      const fmtShortD = (s) => s.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
-      return { start: ds(mon), end: ds(sun), label: `${fmtShortD(mon)} \u2013 ${fmtShortD(sun)}` };
+      const fD = (s) => s.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+      return { start: ds(mon), end: ds(sun), label: fD(mon) + " \u2013 " + fD(sun) };
     }
     if (period === "mese") {
       const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
       const y = d.getFullYear(), m = d.getMonth();
-      const s = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-      const e = `${y}-${String(m + 1).padStart(2, "0")}-31`;
+      const s = y + "-" + String(m + 1).padStart(2, "0") + "-01";
+      const e = y + "-" + String(m + 1).padStart(2, "0") + "-31";
       const lbl = d.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
       return { start: s, end: e, label: lbl.charAt(0).toUpperCase() + lbl.slice(1) };
     }
     if (period === "anno") {
       const y = now.getFullYear() + offset;
-      return { start: `${y}-01-01`, end: `${y}-12-31`, label: `${y}` };
+      return { start: y + "-01-01", end: y + "-12-31", label: String(y) };
     }
     return { start: todayStr(), end: todayStr(), label: "Oggi" };
   }, [period, offset]);
-  const filtered = useMemo(() => txs.filter((t) => t.date >= start && t.date <= end), [txs, start, end]);
+  const filtered = useMemo(
+    () => txs.filter((t) => t.date >= start && t.date <= end),
+    [txs, start, end]
+  );
   const totI = filtered.filter((t) => t.type === "entrata").reduce((s, t) => s + t.amount, 0);
   const totE = filtered.filter((t) => t.type === "uscita").reduce((s, t) => s + t.amount, 0);
   const bal = txs.filter((t) => t.type === "entrata").reduce((s, t) => s + t.amount, 0) - txs.filter((t) => t.type === "uscita").reduce((s, t) => s + t.amount, 0);
-  const pieSource = filtered.length > 0 ? filtered : [...txs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 50);
   const pieData = useMemo(() => {
     const m = {};
-    pieSource.filter((t) => t.type === view).forEach((t) => {
+    filtered.filter((t) => t.type === view).forEach((t) => {
       m[t.categoryId] = (m[t.categoryId] || 0) + t.amount;
     });
     const tot = Object.values(m).reduce((s, v) => s + v, 0);
@@ -329,17 +331,68 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
       const cat = cats.find((c) => c.id === id) || CATS[CATS.length - 1];
       return { name: cat.n, value: Math.round(v * 100) / 100, color: cat.c, pct: Math.round(v / tot * 100) };
     }).sort((a, b) => b.value - a.value).slice(0, 6);
-  }, [pieSource, cats, view]);
+  }, [filtered, cats, view]);
   const lineData = useMemo(() => {
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = /* @__PURE__ */ new Date();
-      d.setDate(d.getDate() - i);
-      const ds = d.toISOString().split("T")[0];
-      days.push({ label: d.toLocaleDateString("it-IT", { weekday: "short" }), v: txs.filter((t) => t.date === ds && t.type === view).reduce((s, t) => s + t.amount, 0) });
+    if (period === "giorno") {
+      const days = [];
+      const endD = /* @__PURE__ */ new Date(end + "T00:00:00");
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(endD);
+        d.setDate(d.getDate() - i);
+        const ds = d.toISOString().split("T")[0];
+        days.push({
+          label: d.toLocaleDateString("it-IT", { weekday: "short" }),
+          v: txs.filter((t) => t.date === ds && t.type === view).reduce((s, t) => s + t.amount, 0)
+        });
+      }
+      return days;
     }
-    return days;
-  }, [txs, view]);
+    if (period === "settimana") {
+      const days = [];
+      const startD = /* @__PURE__ */ new Date(start + "T00:00:00");
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startD);
+        d.setDate(d.getDate() + i);
+        const ds = d.toISOString().split("T")[0];
+        days.push({
+          label: d.toLocaleDateString("it-IT", { weekday: "short" }),
+          v: txs.filter((t) => t.date === ds && t.type === view).reduce((s, t) => s + t.amount, 0)
+        });
+      }
+      return days;
+    }
+    if (period === "mese") {
+      const days = [];
+      const startD = /* @__PURE__ */ new Date(start + "T00:00:00");
+      const endD = /* @__PURE__ */ new Date(end.replace("-31", "-28") + "T00:00:00");
+      const lastDay = new Date(startD.getFullYear(), startD.getMonth() + 1, 0);
+      const weeks = [];
+      let cur = new Date(startD);
+      while (cur <= lastDay) {
+        const weekEnd = new Date(cur);
+        weekEnd.setDate(cur.getDate() + 6);
+        if (weekEnd > lastDay) weekEnd.setTime(lastDay.getTime());
+        const ws = cur.toISOString().split("T")[0];
+        const we = weekEnd.toISOString().split("T")[0];
+        const v = txs.filter((t) => t.date >= ws && t.date <= we && t.type === view).reduce((s, t) => s + t.amount, 0);
+        weeks.push({ label: cur.getDate() + "/" + (cur.getMonth() + 1), v });
+        cur.setDate(cur.getDate() + 7);
+      }
+      return weeks;
+    }
+    if (period === "anno") {
+      const months = [];
+      const y = parseInt(start.slice(0, 4));
+      for (let m = 0; m < 12; m++) {
+        const ms = y + "-" + String(m + 1).padStart(2, "0") + "-01";
+        const me = y + "-" + String(m + 1).padStart(2, "0") + "-31";
+        const v = txs.filter((t) => t.date >= ms && t.date <= me && t.type === view).reduce((s, t) => s + t.amount, 0);
+        months.push({ label: new Date(y, m, 1).toLocaleDateString("it-IT", { month: "short" }), v });
+      }
+      return months;
+    }
+    return [];
+  }, [txs, period, start, end, view]);
   const periodTxs = useMemo(
     () => [...filtered].sort((a, b) => b.date.localeCompare(a.date)),
     [filtered]
@@ -364,10 +417,20 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
         setPeriod(v);
         setOffset(0);
       },
-      style: { flex: 1, padding: "6px 4px", borderRadius: 10, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", background: period === v ? "#007AFF" : "#fff", color: period === v ? "#fff" : "#8E8E93" }
+      style: {
+        flex: 1,
+        padding: "6px 4px",
+        borderRadius: 10,
+        fontSize: 11,
+        fontWeight: 700,
+        border: "none",
+        cursor: "pointer",
+        background: period === v ? "#007AFF" : "#fff",
+        color: period === v ? "#fff" : "#8E8E93"
+      }
     },
     l
-  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } }, /* @__PURE__ */ React.createElement(
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: () => setOffset((o) => o - 1),
@@ -378,10 +441,22 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
     "button",
     {
       onClick: () => setOffset((o) => Math.min(0, o + 1)),
-      style: { width: 34, height: 34, borderRadius: 10, border: "none", background: "#fff", fontSize: 18, cursor: "pointer", color: offset >= 0 ? "#AEAEB2" : "#007AFF", display: "flex", alignItems: "center", justifyContent: "center" }
+      style: {
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        border: "none",
+        background: "#fff",
+        fontSize: 18,
+        cursor: "pointer",
+        color: offset >= 0 ? "#AEAEB2" : "#007AFF",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }
     },
     "\u203A"
-  ))), /* @__PURE__ */ React.createElement("div", { style: { margin: "10px 14px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: 14, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: pieData.length > 0 ? 10 : 4 } }, view === "uscite" ? "Uscite" : "Entrate", " per Categoria", filtered.length === 0 && pieData.length > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#8E8E93", fontWeight: 400, marginLeft: 6 } }, "(ultimi dati)")), pieData.length > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { height: 150 } }, /* @__PURE__ */ React.createElement(PieSVG, { data: pieData })), pieData.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.name, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: e.color } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12 } }, e.name)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#8E8E93", fontWeight: 600 } }, e.pct, "%"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "#8E8E93" } }, fmt(e.value)))))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "16px 0", color: "#8E8E93", fontSize: 13 } }, "Nessun dato \u2014 aggiungi una transazione")), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: 10 } }, "Ultimi 7 giorni"), /* @__PURE__ */ React.createElement("div", { style: { height: 110 } }, /* @__PURE__ */ React.createElement(LineSVG, { data: lineData })))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Transazioni \xB7 ", label), /* @__PURE__ */ React.createElement("span", { style: { color: "#8E8E93", fontWeight: 600 } }, periodTxs.length)), periodTxs.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "30px 16px", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 36, marginBottom: 8 } }, "\u{1F4B8}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#3C3C43" } }, "Nessuna transazione"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginTop: 4 } }, "Tocca + per aggiungere")) : /* @__PURE__ */ React.createElement("div", { style: S.group }, periodTxs.map((tx) => /* @__PURE__ */ React.createElement(TxRow, { key: tx.id, tx, cats, onClick: onOpenTx })))));
+  ))), /* @__PURE__ */ React.createElement("div", { style: { margin: "0 14px 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: 10 } }, view === "uscite" ? "Uscite" : "Entrate", " per Categoria \xB7 ", label), pieData.length > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { height: 150 } }, /* @__PURE__ */ React.createElement(PieSVG, { data: pieData })), pieData.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.name, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: e.color } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12 } }, e.name)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#8E8E93", fontWeight: 600 } }, e.pct, "%"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "#8E8E93" } }, fmt(e.value)))))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "20px 0", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, marginBottom: 6 } }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13 } }, "Nessuna ", view === "uscite" ? "uscita" : "entrata", " in questo periodo")))), lineData.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 14px 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: 10 } }, "Andamento ", view === "uscite" ? "uscite" : "entrate"), /* @__PURE__ */ React.createElement("div", { style: { height: 110 } }, /* @__PURE__ */ React.createElement(LineSVG, { data: lineData })))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Transazioni \xB7 ", label), /* @__PURE__ */ React.createElement("span", { style: { color: "#8E8E93", fontWeight: 600 } }, periodTxs.length)), periodTxs.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "24px 16px", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 6 } }, "\u{1F4B8}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#3C3C43" } }, "Nessuna transazione"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginTop: 3 } }, "Tocca + per aggiungere")) : /* @__PURE__ */ React.createElement("div", { style: S.group }, periodTxs.map((tx) => /* @__PURE__ */ React.createElement(TxRow, { key: tx.id, tx, cats, onClick: onOpenTx })))));
 }
 function Movimenti({ txs, cats, onOpenTx }) {
   const [search, setSearch] = useState("");
