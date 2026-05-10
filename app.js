@@ -1,4 +1,4 @@
-// v13 - Sun May 10 10:11:12 UTC 2026
+// v14 - Sun May 10 10:39:18 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -173,7 +173,7 @@ function PieSVG({ data }) {
     },
     s.pct,
     "%"
-  ))), tip !== null && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("text", { x: cx, y: cy - 8, textAnchor: "middle", fontSize: "9", fill: "#1C1C1E" }, slices[tip].name), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 8, textAnchor: "middle", fontSize: "13", fontWeight: "700", fill: "#1C1C1E" }, fmt(slices[tip].value)), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 22, textAnchor: "middle", fontSize: "9", fill: "#8E8E93" }, slices[tip].pct, "%")));
+  ))), tip === null && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("text", { x: cx, y: cy - 4, textAnchor: "middle", fontSize: "9", fill: "#8E8E93" }, "Totale"), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 11, textAnchor: "middle", fontSize: "12", fontWeight: "700", fill: "#1C1C1E" }, fmt(tot))), tip !== null && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("text", { x: cx, y: cy - 8, textAnchor: "middle", fontSize: "9", fill: "#1C1C1E" }, slices[tip].name), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 8, textAnchor: "middle", fontSize: "13", fontWeight: "700", fill: "#1C1C1E" }, fmt(slices[tip].value)), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 22, textAnchor: "middle", fontSize: "9", fill: "#8E8E93" }, slices[tip].pct, "%")));
 }
 function LineSVG({ data }) {
   const [tip, setTip] = useState(null);
@@ -396,8 +396,8 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
     return [];
   }, [txs, period, start, end, view]);
   const periodTxs = useMemo(
-    () => [...filtered].sort((a, b) => b.date.localeCompare(a.date)),
-    [filtered]
+    () => filtered.filter((t) => view === "uscite" ? t.type === "uscita" : t.type === "entrata").sort((a, b) => b.date.localeCompare(a.date)),
+    [filtered, view]
   );
   const h = (/* @__PURE__ */ new Date()).getHours();
   const gr = h < 12 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera";
