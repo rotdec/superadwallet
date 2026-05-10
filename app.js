@@ -1,4 +1,4 @@
-// SuperADWallet v11 - Sun May 10 10:00:42 UTC 2026
+// v12 - Sun May 10 10:04:53 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -160,7 +160,7 @@ function PieSVG({ data }) {
     a += sw + 0.02;
     return { path, color: d.color, value: d.value, name: d.name, pct, midA, sw, i };
   });
-  return /* @__PURE__ */ React.createElement("svg", { width: SIZE, height: SIZE, viewBox: "0 0 " + SIZE + " " + SIZE, style: { display: "block", margin: "0 auto" } }, slices.map((s, i) => /* @__PURE__ */ React.createElement("g", { key: i, onClick: () => setTip(tip === i ? null : i), style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement("path", { d: s.path, fill: s.color, opacity: tip !== null && tip !== i ? 0.5 : 1 }), s.sw > 0.3 && /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 " + SIZE + " " + SIZE, style: { display: "block", width: "100%", maxWidth: SIZE, margin: "0 auto" } }, slices.map((s, i) => /* @__PURE__ */ React.createElement("g", { key: i, onClick: () => setTip(tip === i ? null : i), style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement("path", { d: s.path, fill: s.color, opacity: tip !== null && tip !== i ? 0.5 : 1 }), s.sw > 0.3 && /* @__PURE__ */ React.createElement(
     "text",
     {
       x: cx + (R + 14) * Math.cos(s.midA),
@@ -873,5 +873,5 @@ function App() {
     setProfile(null);
   }, style: { marginTop: 20, padding: "10px 20px", borderRadius: 10, background: "rgba(255,59,48,.1)", color: "#FF3B30", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 14 } }, "Cambia profilo"))));
 }
-try{ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));}catch(e){document.getElementById('root').innerHTML='<div style="padding:20px;color:red;font-size:13px;font-family:sans-serif;background:#fff;min-height:100vh"><b>Errore:</b><br>'+e.message+'</div>';}
+try{ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));}catch(e){document.getElementById('root').innerHTML='<div style="padding:20px;color:red;font-size:13px;background:#fff"><b>Errore:</b><br>'+e.message+'</div>';}
 })();
