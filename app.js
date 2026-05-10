@@ -1,4 +1,4 @@
-// SuperADWallet v10 - Sat May  9 19:23:46 UTC 2026
+// SuperADWallet v11 - Sun May 10 10:00:42 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -139,39 +139,41 @@ const S = {
 };
 function PieSVG({ data }) {
   const [tip, setTip] = useState(null);
-  if (!data || !data.length) return null;
+  if (!data || data.length === 0) return null;
+  const SIZE = 200;
+  const cx = SIZE / 2, cy = SIZE / 2, R = 72, r = 44;
   const tot = data.reduce((s, d) => s + d.value, 0);
-  const cx = 85, cy = 85, R = 65, r = 42;
+  if (tot === 0) return null;
   let a = -Math.PI / 2;
-  const sl = data.map((d, i) => {
-    const sw = d.value / tot * 2 * Math.PI * 0.97;
-    const x1 = cx + R * Math.cos(a), y1 = cy + R * Math.sin(a);
-    const x2 = cx + R * Math.cos(a + sw), y2 = cy + R * Math.sin(a + sw);
-    const ix1 = cx + r * Math.cos(a), iy1 = cy + r * Math.sin(a);
-    const ix2 = cx + r * Math.cos(a + sw), iy2 = cy + r * Math.sin(a + sw);
+  const slices = data.map((d, i) => {
+    const sw = d.value / tot * 2 * Math.PI * 0.98;
+    const cos1 = Math.cos(a), sin1 = Math.sin(a);
+    const cos2 = Math.cos(a + sw), sin2 = Math.sin(a + sw);
+    const x1 = cx + R * cos1, y1 = cy + R * sin1;
+    const x2 = cx + R * cos2, y2 = cy + R * sin2;
+    const ix1 = cx + r * cos1, iy1 = cy + r * sin1;
+    const ix2 = cx + r * cos2, iy2 = cy + r * sin2;
     const lg = sw > Math.PI ? 1 : 0;
-    const path = `M${x1},${y1} A${R},${R},0,${lg},1,${x2},${y2} L${ix2},${iy2} A${r},${r},0,${lg},0,${ix1},${iy1} Z`;
+    const path = "M" + x1 + "," + y1 + " A" + R + "," + R + ",0," + lg + ",1," + x2 + "," + y2 + " L" + ix2 + "," + iy2 + " A" + r + "," + r + ",0," + lg + ",0," + ix1 + "," + iy1 + " Z";
     const midA = a + sw / 2;
-    const lx = cx + (R + 14) * Math.cos(midA);
-    const ly = cy + (R + 14) * Math.sin(midA);
     const pct = Math.round(d.value / tot * 100);
-    a += sw + 0.03;
-    return { path, color: d.color, value: d.value, name: d.name, pct, lx, ly, sw, i };
+    a += sw + 0.02;
+    return { path, color: d.color, value: d.value, name: d.name, pct, midA, sw, i };
   });
-  return /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 170 170", style: { width: "100%", height: "100%" } }, sl.map((s, i) => /* @__PURE__ */ React.createElement("g", { key: i, onMouseEnter: () => setTip(i), onMouseLeave: () => setTip(null), style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement("path", { d: s.path, fill: s.color, opacity: tip !== null && tip !== i ? 0.5 : 1 }), s.sw > 0.35 && /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("svg", { width: SIZE, height: SIZE, viewBox: "0 0 " + SIZE + " " + SIZE, style: { display: "block", margin: "0 auto" } }, slices.map((s, i) => /* @__PURE__ */ React.createElement("g", { key: i, onClick: () => setTip(tip === i ? null : i), style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement("path", { d: s.path, fill: s.color, opacity: tip !== null && tip !== i ? 0.5 : 1 }), s.sw > 0.3 && /* @__PURE__ */ React.createElement(
     "text",
     {
-      x: s.lx,
-      y: s.ly,
+      x: cx + (R + 14) * Math.cos(s.midA),
+      y: cy + (R + 14) * Math.sin(s.midA),
       textAnchor: "middle",
       dominantBaseline: "middle",
-      fontSize: 8,
+      fontSize: "9",
       fontWeight: "700",
       fill: s.color
     },
     s.pct,
     "%"
-  ))), tip !== null && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("text", { x: cx, y: cy - 7, textAnchor: "middle", fontSize: 8, fill: "#1C1C1E" }, sl[tip].name), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 6, textAnchor: "middle", fontSize: 11, fontWeight: "700", fill: "#1C1C1E" }, fmt(sl[tip].value)), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 18, textAnchor: "middle", fontSize: 9, fill: "#8E8E93" }, sl[tip].pct, "%")));
+  ))), tip !== null && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("text", { x: cx, y: cy - 8, textAnchor: "middle", fontSize: "9", fill: "#1C1C1E" }, slices[tip].name), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 8, textAnchor: "middle", fontSize: "13", fontWeight: "700", fill: "#1C1C1E" }, fmt(slices[tip].value)), /* @__PURE__ */ React.createElement("text", { x: cx, y: cy + 22, textAnchor: "middle", fontSize: "9", fill: "#8E8E93" }, slices[tip].pct, "%")));
 }
 function LineSVG({ data }) {
   const [tip, setTip] = useState(null);
@@ -456,7 +458,7 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
       }
     },
     "\u203A"
-  ))), /* @__PURE__ */ React.createElement("div", { style: { margin: "0 14px 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: 10 } }, view === "uscite" ? "Uscite" : "Entrate", " per Categoria \xB7 ", label), pieData.length > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { height: 160, width: "100%", display: "block" } }, /* @__PURE__ */ React.createElement(PieSVG, { data: pieData })), pieData.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.name, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: e.color } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12 } }, e.name)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#8E8E93", fontWeight: 600 } }, e.pct, "%"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "#8E8E93" } }, fmt(e.value)))))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "20px 0", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, marginBottom: 6 } }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13 } }, "Nessuna ", view === "uscite" ? "uscita" : "entrata", " in questo periodo")))), lineData.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 14px 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: 10 } }, "Andamento ", view === "uscite" ? "uscite" : "entrate"), /* @__PURE__ */ React.createElement("div", { style: { height: 120, width: "100%", display: "block" } }, /* @__PURE__ */ React.createElement(LineSVG, { data: lineData })))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Transazioni \xB7 ", label), /* @__PURE__ */ React.createElement("span", { style: { color: "#8E8E93", fontWeight: 600 } }, periodTxs.length)), periodTxs.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "24px 16px", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 6 } }, "\u{1F4B8}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#3C3C43" } }, "Nessuna transazione"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginTop: 3 } }, "Tocca + per aggiungere")) : /* @__PURE__ */ React.createElement("div", { style: S.group }, periodTxs.map((tx) => /* @__PURE__ */ React.createElement(TxRow, { key: tx.id, tx, cats, onClick: onOpenTx })))));
+  ))), /* @__PURE__ */ React.createElement("div", { style: { margin: "0 14px 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: 10 } }, view === "uscite" ? "Uscite" : "Entrate", " per Categoria \xB7 ", label), pieData.length > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(PieSVG, { data: pieData }), pieData.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.name, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: e.color } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12 } }, e.name)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#8E8E93", fontWeight: 600 } }, e.pct, "%"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "#8E8E93" } }, fmt(e.value)))))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "20px 0", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, marginBottom: 6 } }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13 } }, "Nessuna ", view === "uscite" ? "uscita" : "entrata", " in questo periodo")))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Transazioni \xB7 ", label), /* @__PURE__ */ React.createElement("span", { style: { color: "#8E8E93", fontWeight: 600 } }, periodTxs.length)), periodTxs.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "24px 16px", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 6 } }, "\u{1F4B8}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#3C3C43" } }, "Nessuna transazione"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginTop: 3 } }, "Tocca + per aggiungere")) : /* @__PURE__ */ React.createElement("div", { style: S.group }, periodTxs.map((tx) => /* @__PURE__ */ React.createElement(TxRow, { key: tx.id, tx, cats, onClick: onOpenTx })))));
 }
 function Movimenti({ txs, cats, onOpenTx }) {
   const [search, setSearch] = useState("");
