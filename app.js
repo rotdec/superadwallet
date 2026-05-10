@@ -1,4 +1,4 @@
-// v14 - Sun May 10 10:39:18 UTC 2026
+// v15 - Sun May 10 10:46:06 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -852,7 +852,7 @@ function App() {
       sv("sadw_tx5", u);
       return u;
     });
-  } }), tab === "rapporti" && /* @__PURE__ */ React.createElement(Rapporti, { txs, cats }), tab === "rapporti" && /* @__PURE__ */ React.createElement(Rapporti, { txs, cats }), tab === "impostazioni" && /* @__PURE__ */ React.createElement(Impostazioni, { cats, txs, recs, onCatSave: saveCat, onCatDelete: delCat, onImport: importTxs, onAddRec: () => {
+  } }), tab === "rapporti" && /* @__PURE__ */ React.createElement(Rapporti, { txs, cats }), tab === "impostazioni" && /* @__PURE__ */ React.createElement(Impostazioni, { cats, txs, recs, onCatSave: saveCat, onCatDelete: delCat, onImport: importTxs, onAddRec: () => {
     setEditRec(null);
     setShowRec(true);
   }, onEditRec: (r) => {
