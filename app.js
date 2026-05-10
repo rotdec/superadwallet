@@ -1,4 +1,4 @@
-// v15 - Sun May 10 10:46:06 UTC 2026
+// v17 - Sun May 10 11:27:11 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -10,7 +10,7 @@ const weekStart = () => {
   return d.toISOString().split("T")[0];
 };
 const yearStart = () => new Date((/* @__PURE__ */ new Date()).getFullYear(), 0, 1).toISOString().split("T")[0];
-const fmt = (n) => new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(n);
+const fmt = (n) => new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }).format(n);
 const fmtS = (n) => Math.abs(n) >= 1e3 ? `\u20AC${(n / 1e3).toFixed(1)}k` : fmt(n);
 const fmtD = (d) => (/* @__PURE__ */ new Date(d + "T00:00:00")).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
 const fmtDF = (d) => (/* @__PURE__ */ new Date(d + "T00:00:00")).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
@@ -253,7 +253,7 @@ function TxSheet({ tx, cats, allTags, onSave, onDelete, onClose }) {
     },
     /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, background: "rgba(175,82,222,.12)", color: "#AF52DE", borderRadius: 6, padding: "1px 7px" } }, "\u{1F3F7}\uFE0F"),
     tag
-  )))), /* @__PURE__ */ React.createElement("button", { onClick: handleSave, style: { ...S.btn, background: "#007AFF", color: "#fff" } }, tx ? "Salva Modifiche" : "Aggiungi Transazione"), tx && !tx.auto && /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(tx.id), style: { ...S.btn, background: "rgba(255,59,48,.1)", color: "#FF3B30", marginTop: 8 } }, "Elimina"));
+  )))), /* @__PURE__ */ React.createElement("button", { onClick: handleSave, style: { ...S.btn, background: "#007AFF", color: "#fff" } }, tx ? "Salva Modifiche" : "Aggiungi Transazione"), tx && /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(tx.id), style: { ...S.btn, background: "rgba(255,59,48,.1)", color: "#FF3B30", marginTop: 8 } }, "Elimina", tx.auto ? " (solo questo mese)" : ""));
 }
 function RecSheet({ rec, cats, onSave, onDelete, onClose }) {
   const [f, setF] = useState({ name: rec?.name || "", amount: rec?.amount?.toString() || "", frequency: rec?.frequency || "mensile", startDate: rec?.startDate || todayStr(), categoryId: rec?.categoryId || cats[0]?.id || "", enabled: rec?.enabled !== false });
