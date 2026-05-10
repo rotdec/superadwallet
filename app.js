@@ -1,4 +1,4 @@
-// v12 - Sun May 10 10:04:53 UTC 2026
+// v13 - Sun May 10 10:11:12 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -324,7 +324,7 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
   const bal = txs.filter((t) => t.type === "entrata").reduce((s, t) => s + t.amount, 0) - txs.filter((t) => t.type === "uscita").reduce((s, t) => s + t.amount, 0);
   const pieData = useMemo(() => {
     const m = {};
-    filtered.filter((t) => t.type === view).forEach((t) => {
+    filtered.filter((t) => view === "uscite" ? t.type === "uscita" : t.type === "entrata").forEach((t) => {
       m[t.categoryId] = (m[t.categoryId] || 0) + t.amount;
     });
     const tot = Object.values(m).reduce((s, v) => s + v, 0);
