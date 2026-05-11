@@ -1,4 +1,4 @@
-// v18 - Sun May 10 17:06:13 UTC 2026
+// v19 - Mon May 11 08:00:53 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -580,11 +580,175 @@ function Rapporti({ txs, cats }) {
     selectedCat === c.id && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, borderTop: "0.5px solid rgba(60,60,67,.1)", paddingTop: 8 } }, filtered.filter((t) => t.type === "uscita" && t.categoryId === c.id).sort((a, b) => b.date.localeCompare(a.date)).map((tx) => /* @__PURE__ */ React.createElement("div", { key: tx.id, style: { display: "flex", alignItems: "center", gap: 8, paddingBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: "#1C1C1E", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, tx.description), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#8E8E93" } }, fmtD(tx.date), tx.tag ? " \xB7 \u{1F3F7}\uFE0F " + tx.tag : "")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#FF3B30", flexShrink: 0 } }, "\u2212", fmt(tx.amount)))))
   )))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "40px 16px", color: "#8E8E93" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 36, marginBottom: 8 } }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#3C3C43" } }, "Nessun dato"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, marginTop: 4 } }, "Nessuna spesa per questo periodo")));
 }
-function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onAddRec, onEditRec }) {
+function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImportCats, onImportRecs, onAddRec, onEditRec }) {
   const [editCat, setEditCat] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
   const [form, setForm] = useState({ name: "", i: "\u{1F4E6}", c: "#007AFF" });
-  const EMOJIS = ["\u{1F3E0}", "\u26A1", "\u{1F525}", "\u{1F4E1}", "\u{1F4F1}", "\u{1F6D2}", "\u{1F37D}\uFE0F", "\u2615", "\u{1F355}", "\u{1F457}", "\u{1F5A5}\uFE0F", "\u{1F697}", "\u26FD", "\u{1F68C}", "\u{1F695}", "\u{1F48A}", "\u{1F3E5}", "\u{1F3CB}\uFE0F", "\u{1F6E1}\uFE0F", "\u{1F3AC}", "\u{1F3B5}", "\u{1F3AE}", "\u{1F4DA}", "\u2708\uFE0F", "\u{1F3E8}", "\u{1F3D6}\uFE0F", "\u{1F393}", "\u{1F43E}", "\u{1F4B0}", "\u{1F4BC}", "\u{1F4C8}", "\u{1F4B8}", "\u{1F381}", "\u{1F504}", "\u{1F4E6}"];
+  const EMOJIS = [
+    // Casa & Utenze
+    "\u{1F3E0}",
+    "\u{1F3E1}",
+    "\u{1F3E2}",
+    "\u26A1",
+    "\u{1F4A1}",
+    "\u{1F525}",
+    "\u{1F4A7}",
+    "\u{1F6BF}",
+    "\u{1F6C1}",
+    "\u{1F9F9}",
+    "\u{1F9FA}",
+    "\u{1F527}",
+    "\u{1F528}",
+    "\u{1FA9A}",
+    "\u{1F6CB}\uFE0F",
+    "\u{1FAB4}",
+    // Cibo & Bevande
+    "\u{1F6D2}",
+    "\u{1F37D}\uFE0F",
+    "\u2615",
+    "\u{1F355}",
+    "\u{1F354}",
+    "\u{1F32E}",
+    "\u{1F363}",
+    "\u{1F35C}",
+    "\u{1F957}",
+    "\u{1F377}",
+    "\u{1F37A}",
+    "\u{1F964}",
+    "\u{1F9C3}",
+    "\u{1F382}",
+    "\u{1F370}",
+    "\u{1F9C1}",
+    // Sport & Attività
+    "\u{1F3CB}\uFE0F",
+    "\u{1F3CA}",
+    "\u{1F9D8}",
+    "\u{1F6B4}",
+    "\u{1F3C3}",
+    "\u26F7\uFE0F",
+    "\u{1F3BE}",
+    "\u{1F3D0}",
+    "\u{1F3D6}\uFE0F",
+    "\u{1F3AF}",
+    "\u{1F94A}",
+    "\u26BD",
+    "\u{1F3C0}",
+    "\u{1F3BF}",
+    "\u{1F3C4}",
+    "\u{1F6F9}",
+    // Trasporti
+    "\u{1F697}",
+    "\u26FD",
+    "\u{1F68C}",
+    "\u{1F695}",
+    "\u2708\uFE0F",
+    "\u{1F682}",
+    "\u{1F6F5}",
+    "\u{1F681}",
+    "\u26F5",
+    "\u{1F6A2}",
+    "\u{1F17F}\uFE0F",
+    "\u{1F6E3}\uFE0F",
+    // Shopping & Moda
+    "\u{1F457}",
+    "\u{1F460}",
+    "\u{1F454}",
+    "\u{1F6CD}\uFE0F",
+    "\u{1F484}",
+    "\u{1F48D}",
+    "\u231A",
+    "\u{1F452}",
+    "\u{1F9F4}",
+    "\u{1FAA5}",
+    "\u{1F9F8}",
+    "\u{1F380}",
+    // Salute
+    "\u{1F48A}",
+    "\u{1F3E5}",
+    "\u{1FA7A}",
+    "\u{1F9B7}",
+    "\u{1F453}",
+    "\u{1FA79}",
+    "\u{1F489}",
+    "\u{1F9EC}",
+    "\u{1F321}\uFE0F",
+    // Intrattenimento
+    "\u{1F3AC}",
+    "\u{1F3B5}",
+    "\u{1F3AE}",
+    "\u{1F4DA}",
+    "\u{1F3AD}",
+    "\u{1F3AA}",
+    "\u{1F3A8}",
+    "\u{1F3B8}",
+    "\u{1F3B9}",
+    "\u{1F3B2}",
+    "\u{1F0CF}",
+    "\u{1F3A4}",
+    // Lavoro & Tech
+    "\u{1F4BC}",
+    "\u{1F5A5}\uFE0F",
+    "\u{1F4F1}",
+    "\u2328\uFE0F",
+    "\u{1F5A8}\uFE0F",
+    "\u{1F4F7}",
+    "\u{1F52C}",
+    "\u{1F4CA}",
+    "\u{1F4CB}",
+    "\u270F\uFE0F",
+    "\u{1F4CE}",
+    "\u{1F5C2}\uFE0F",
+    // Animali
+    "\u{1F43E}",
+    "\u{1F436}",
+    "\u{1F431}",
+    "\u{1F420}",
+    "\u{1F430}",
+    "\u{1F99C}",
+    "\u{1F434}",
+    "\u{1F411}",
+    // Natura & Sport Acqua
+    "\u{1F30A}",
+    "\u{1F3C4}",
+    "\u{1F93D}",
+    "\u{1F6A3}",
+    "\u{1F3D5}\uFE0F",
+    "\u26FA",
+    "\u{1F332}",
+    "\u{1F338}",
+    "\u{1F33B}",
+    "\u2600\uFE0F",
+    "\u{1F319}",
+    // Finanza
+    "\u{1F4B0}",
+    "\u{1F4B3}",
+    "\u{1F3E6}",
+    "\u{1F4C8}",
+    "\u{1F4B8}",
+    "\u{1F4B5}",
+    "\u{1FA99}",
+    "\u{1F911}",
+    // Varie
+    "\u{1F381}",
+    "\u{1F504}",
+    "\u{1F4E6}",
+    "\u2708\uFE0F",
+    "\u{1F3E8}",
+    "\u{1F393}",
+    "\u{1F389}",
+    "\u{1F38A}",
+    "\u{1F56F}\uFE0F",
+    "\u{1FA91}",
+    "\u{1F6CF}\uFE0F",
+    "\u{1F6AA}",
+    // Lavanderia & Pulizie
+    "\u{1F9FA}",
+    "\u{1F455}",
+    "\u{1F45A}",
+    "\u{1F9FD}",
+    "\u{1FAA3}",
+    "\u{1FAE7}"
+  ];
   const openCat = (c = null) => {
     setEditCat(c);
     setForm(c ? { name: c.n, i: c.i, c: c.c } : { name: "", i: "\u{1F4E6}", c: "#007AFF" });
@@ -598,17 +762,30 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onAdd
   };
   const exportExcel = () => {
     const BOM = "\uFEFF";
-    const headers = ["Data", "Descrizione", "Categoria", "Tipo", "Importo", "Metodo", "Tag", "Note"];
+    const headers = ["Data", "Descrizione", "Categoria", "CategoriaID", "Tipo", "Importo", "Metodo", "Tag", "Note"];
     const rows = txs.map((t) => {
       const cat = cats.find((c) => c.id === t.categoryId);
       const esc = (s) => (s || "").replace(/"/g, "");
-      return [t.date, esc(t.description), esc(cat?.n || "Altro"), t.type === "entrata" ? "Entrata" : "Uscita", t.amount.toString().replace(".", ","), esc(t.paymentMethod), esc(t.tag), esc(t.notes)].join(";");
+      return [t.date, esc(t.description), esc(cat?.n || "Altro"), t.categoryId || "", t.type === "entrata" ? "Entrata" : "Uscita", t.amount.toString().replace(".", ","), esc(t.paymentMethod), esc(t.tag), esc(t.notes)].join(";");
     });
     const csv = BOM + [headers.join(";"), ...rows].join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     a.download = "SuperADWallet_" + todayStr() + ".csv";
     a.click();
+    setTimeout(() => {
+      const backup = {
+        version: 1,
+        exportDate: todayStr(),
+        categories: cats,
+        recurrings: recs,
+        transactions: txs
+      };
+      const b = document.createElement("a");
+      b.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+      b.download = "SuperADWallet_backup_" + todayStr() + ".json";
+      b.click();
+    }, 500);
   };
   const handleImport = (e) => {
     const file = e.target.files[0];
@@ -617,6 +794,17 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onAdd
     reader.onload = (ev) => {
       try {
         const text = ev.target.result.replace(/^\uFEFF/, "");
+        if (file.name.endsWith(".json")) {
+          const backup = JSON.parse(text);
+          if (!backup.version) return alert("File JSON non valido");
+          if (!window.confirm("Ripristinare il backup completo?\n\nVerranno importati:\n\u2022 " + (backup.transactions || []).length + " transazioni\n\u2022 " + (backup.categories || []).length + " categorie\n\u2022 " + (backup.recurrings || []).length + " spese fisse\n\nAttenzione: i dati attuali NON verranno cancellati, verranno aggiunti.")) return;
+          if (backup.categories?.length) onImportCats(backup.categories);
+          if (backup.recurrings?.length) onImportRecs(backup.recurrings);
+          if (backup.transactions?.length) onImport(backup.transactions);
+          alert("\u2705 Backup ripristinato!");
+          e.target.value = "";
+          return;
+        }
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         const sep = lines[0].includes(";") ? ";" : ",";
         const headers = lines[0].split(sep).map((h) => h.replace(/^"|"$/g, "").toLowerCase().trim());
@@ -636,9 +824,23 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onAdd
           if (!date || isNaN(amt) || amt <= 0) continue;
           const tipoRaw = getCol(row, ["tipo", "type"]).toLowerCase();
           const type = tipoRaw.includes("entr") ? "entrata" : "uscita";
+          const catId = getCol(row, ["categoriaid"]);
           const catName = getCol(row, ["categoria", "category"]);
-          const cat = cats.find((c) => c.n.toLowerCase() === catName.toLowerCase());
-          imported.push({ id: uid(), date, amount: amt, type, categoryId: cat?.id || "c-altro", description: getCol(row, ["descrizione", "description"]) || catName || "Importato", paymentMethod: getCol(row, ["metodo", "paymentmethod"]) || "Altro", tag: getCol(row, ["tag"]) || "", notes: "", auto: false });
+          const catById = catId ? cats.find((c) => c.id === catId) : null;
+          const catByName = cats.find((c) => c.n.toLowerCase() === catName.toLowerCase());
+          const resolvedCat = catById || catByName;
+          imported.push({
+            id: uid(),
+            date,
+            amount: amt,
+            type,
+            categoryId: resolvedCat?.id || "c-altro",
+            description: getCol(row, ["descrizione", "description"]) || catName || "Importato",
+            paymentMethod: getCol(row, ["metodo", "paymentmethod"]) || "Altro",
+            tag: getCol(row, ["tag"]) || "",
+            notes: "",
+            auto: false
+          });
         }
         if (imported.length === 0) return alert("Nessuna transazione trovata.");
         if (window.confirm("Importare " + imported.length + " transazioni?")) {
@@ -655,7 +857,7 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onAdd
   return /* @__PURE__ */ React.createElement("div", { style: S.scroll }, /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Categorie (", cats.length, ")"), /* @__PURE__ */ React.createElement("button", { onClick: () => openCat(), style: { background: "none", border: "none", color: "#007AFF", fontSize: 13, fontWeight: 700, cursor: "pointer" } }, "+ Nuova")), /* @__PURE__ */ React.createElement("div", { style: S.group }, cats.map((c) => /* @__PURE__ */ React.createElement("div", { key: c.id, style: S.row, onClick: () => openCat(c) }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: c.c + "22" } }, c.i), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, fontSize: 14, fontWeight: 500, color: "#1C1C1E" } }, c.n), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16 } }, "\u203A"))))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Spese Fisse (", recs.length, ")"), /* @__PURE__ */ React.createElement("button", { onClick: onAddRec, style: { background: "none", border: "none", color: "#007AFF", fontSize: 13, fontWeight: 700, cursor: "pointer" } }, "+ Nuova")), recs.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#8E8E93", padding: "0 3px 8px" } }, "Aggiungi affitto, bollette, abbonamenti..."), recs.length > 0 && /* @__PURE__ */ React.createElement("div", { style: S.group }, recs.map((r) => {
     const cat = cats.find((c) => c.id === r.categoryId) || CATS[CATS.length - 1];
     return /* @__PURE__ */ React.createElement("div", { key: r.id, style: { ...S.row, opacity: r.enabled ? 1 : 0.5 }, onClick: () => onEditRec(r) }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: cat.c + "22" } }, cat.i), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E" } }, r.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#8E8E93", marginTop: 1 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, fontWeight: 700, borderRadius: 5, padding: "1px 6px", background: r.frequency === "mensile" ? "rgba(0,122,255,.12)" : "rgba(52,199,89,.12)", color: r.frequency === "mensile" ? "#007AFF" : "#34C759" } }, r.frequency), !r.enabled && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: 5 } }, "\xB7 disabilitato"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: "#FF3B30", flexShrink: 0 } }, "\u2212", fmt(r.amount)), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16, marginLeft: 4 } }, "\u203A"));
-  }))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: S.sectionLabel }, "Esporta & Importa"), /* @__PURE__ */ React.createElement("div", { style: S.group }, /* @__PURE__ */ React.createElement("div", { style: S.row, onClick: exportExcel }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: "rgba(52,199,89,.15)" } }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E" } }, "Esporta CSV (Excel)"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#8E8E93", marginTop: 1 } }, txs.length, " transazioni")), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16 } }, "\u203A")), /* @__PURE__ */ React.createElement("label", { style: { ...S.row, cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: "rgba(0,122,255,.15)" } }, "\u{1F4E5}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E" } }, "Importa da CSV"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#8E8E93", marginTop: 1 } }, "Colonne: Data, Descrizione, Tipo, Importo, Categoria, Tag")), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16 } }, "\u203A"), /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: handleImport })))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "20px 0 8px", color: "#8E8E93", fontSize: 11 } }, "SuperADWallet \xB7 Dati salvati localmente"), showSheet && /* @__PURE__ */ React.createElement(Sheet, { title: editCat ? "Modifica" : "Nuova Categoria", onClose: () => setShowSheet(false), onSave: save }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 14, background: "#F2F2F7", borderRadius: 10, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 38, height: 38, borderRadius: 9, background: form.c + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 } }, form.i), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, form.name || "Categoria")), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Nome"), /* @__PURE__ */ React.createElement(Inp, { type: "text", placeholder: "Nome categoria", value: form.name, onChange: (e) => set("name", e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Emoji"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 5, marginTop: 6 } }, EMOJIS.map((em) => /* @__PURE__ */ React.createElement("button", { key: em, onClick: () => set("i", em), style: { width: 36, height: 36, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", border: "none", background: form.i === em ? "rgba(0,122,255,.15)" : "rgba(120,120,128,.1)", outline: form.i === em ? "2px solid #007AFF" : "none" } }, em)))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Colore"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 6 } }, CAT_COLORS.map((col) => /* @__PURE__ */ React.createElement("div", { key: col, onClick: () => set("c", col), style: { width: 28, height: 28, borderRadius: "50%", background: col, cursor: "pointer", border: form.c === col ? "3px solid #1C1C1E" : "3px solid transparent" } })))), /* @__PURE__ */ React.createElement("button", { onClick: save, style: { ...S.btn, background: "#007AFF", color: "#fff" } }, editCat ? "Salva" : "Crea"), editCat && /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  }))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: S.sectionLabel }, "Esporta & Importa"), /* @__PURE__ */ React.createElement("div", { style: S.group }, /* @__PURE__ */ React.createElement("div", { style: S.row, onClick: exportExcel }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: "rgba(52,199,89,.15)" } }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E" } }, "Esporta CSV + Backup JSON"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#8E8E93", marginTop: 1 } }, txs.length, " transazioni \xB7 include categorie e fissi")), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16 } }, "\u203A")), /* @__PURE__ */ React.createElement("label", { style: { ...S.row, cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: "rgba(0,122,255,.15)" } }, "\u{1F4E5}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E" } }, "Importa CSV o Backup JSON"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#8E8E93", marginTop: 1 } }, "CSV: transazioni \xB7 JSON: backup completo (categorie + fissi)")), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16 } }, "\u203A"), /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.txt,.json", style: { display: "none" }, onChange: handleImport })))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "20px 0 8px", color: "#8E8E93", fontSize: 11 } }, "SuperADWallet \xB7 Dati salvati localmente"), showSheet && /* @__PURE__ */ React.createElement(Sheet, { title: editCat ? "Modifica" : "Nuova Categoria", onClose: () => setShowSheet(false), onSave: save }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 14, background: "#F2F2F7", borderRadius: 10, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 38, height: 38, borderRadius: 9, background: form.c + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 } }, form.i), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, form.name || "Categoria")), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Nome"), /* @__PURE__ */ React.createElement(Inp, { type: "text", placeholder: "Nome categoria", value: form.name, onChange: (e) => set("name", e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Emoji"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 5, marginTop: 6 } }, EMOJIS.map((em) => /* @__PURE__ */ React.createElement("button", { key: em, onClick: () => set("i", em), style: { width: 36, height: 36, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", border: "none", background: form.i === em ? "rgba(0,122,255,.15)" : "rgba(120,120,128,.1)", outline: form.i === em ? "2px solid #007AFF" : "none" } }, em)))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Colore"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 7, marginTop: 6 } }, CAT_COLORS.map((col) => /* @__PURE__ */ React.createElement("div", { key: col, onClick: () => set("c", col), style: { width: 28, height: 28, borderRadius: "50%", background: col, cursor: "pointer", border: form.c === col ? "3px solid #1C1C1E" : "3px solid transparent" } })))), /* @__PURE__ */ React.createElement("button", { onClick: save, style: { ...S.btn, background: "#007AFF", color: "#fff" } }, editCat ? "Salva" : "Crea"), editCat && /* @__PURE__ */ React.createElement("button", { onClick: () => {
     onCatDelete(editCat.id);
     setShowSheet(false);
   }, style: { ...S.btn, background: "rgba(255,59,48,.1)", color: "#FF3B30", marginTop: 8 } }, "Elimina")));
@@ -841,6 +1043,26 @@ function App() {
       return u;
     });
   }, []);
+  const importCats = useCallback((imported) => {
+    setCats((prev) => {
+      const merged = [...prev];
+      imported.forEach((c) => {
+        if (!merged.find((e) => e.id === c.id)) merged.push(c);
+      });
+      sv("sadw_cats5", merged);
+      return merged;
+    });
+  }, []);
+  const importRecs = useCallback((imported) => {
+    setRecs((prev) => {
+      const merged = [...prev];
+      imported.forEach((r) => {
+        if (!merged.find((e) => e.id === r.id)) merged.push(r);
+      });
+      sv("sadw_rec5", merged);
+      return merged;
+    });
+  }, []);
   const now = /* @__PURE__ */ new Date();
   const timeStr = now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   const NAV = [
@@ -863,7 +1085,7 @@ function App() {
       sv("sadw_tx5", u);
       return u;
     });
-  } }), tab === "rapporti" && /* @__PURE__ */ React.createElement(Rapporti, { txs, cats }), tab === "impostazioni" && /* @__PURE__ */ React.createElement(Impostazioni, { cats, txs, recs, onCatSave: saveCat, onCatDelete: delCat, onImport: importTxs, onAddRec: () => {
+  } }), tab === "rapporti" && /* @__PURE__ */ React.createElement(Rapporti, { txs, cats }), tab === "impostazioni" && /* @__PURE__ */ React.createElement(Impostazioni, { cats, txs, recs, onCatSave: saveCat, onCatDelete: delCat, onImport: importTxs, onImportCats: importCats, onImportRecs: importRecs, onAddRec: () => {
     setEditRec(null);
     setShowRec(true);
   }, onEditRec: (r) => {
