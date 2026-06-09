@@ -1,4 +1,4 @@
-// v19 - Mon May 11 08:00:53 UTC 2026
+// v20 - Tue Jun  9 15:47:31 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -116,10 +116,9 @@ function processRecurring(recs, txs) {
   return newTx;
 }
 const S = {
-  phone: { width: "100%", height: "100vh", background: "#F2F2F7", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "system-ui,-apple-system,sans-serif" },
-  sb: { height: 38, padding: "10px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F2F2F7", flexShrink: 0 },
+  phone: { width: "100%", height: "100vh", background: "#F2F2F7", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "system-ui,-apple-system,sans-serif", paddingTop: "env(safe-area-inset-top, 0px)" },
   scroll: { flex: 1, overflowY: "scroll", WebkitOverflowScrolling: "touch", paddingBottom: 110, minHeight: 0 },
-  nav: { display: "flex", padding: "0 0 env(safe-area-inset-bottom,8px)", background: "rgba(242,242,247,.96)", borderTop: "0.5px solid rgba(60,60,67,.18)", position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 49 },
+  nav: { display: "flex", paddingBottom: "env(safe-area-inset-bottom, 8px)", background: "rgba(242,242,247,.96)", borderTop: "0.5px solid rgba(60,60,67,.18)", position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 49 },
   ni: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "7px 0 2px", gap: 3, background: "none", border: "none", cursor: "pointer" },
   niIcon: { width: 26, height: 26, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 },
   card: { margin: "10px 14px", background: "linear-gradient(145deg,#007AFF,#5AC8FA)", borderRadius: 20, padding: 18 },
@@ -1063,8 +1062,6 @@ function App() {
       return merged;
     });
   }, []);
-  const now = /* @__PURE__ */ new Date();
-  const timeStr = now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   const NAV = [
     { id: "dashboard", l: "Home", i: "\u{1F3E0}" },
     { id: "movimenti", l: "Movimenti", i: "\u{1F4CB}" },
@@ -1079,7 +1076,7 @@ function App() {
       sv("sadw_profile5", p);
     } }));
   }
-  return /* @__PURE__ */ React.createElement("div", { style: S.phone }, /* @__PURE__ */ React.createElement("div", { style: S.sb }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14, fontWeight: 700 } }, timeStr), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, "\u{1F4F6} \u{1F50B}")), tab !== "dashboard" && /* @__PURE__ */ React.createElement("div", { style: { padding: "2px 16px 8px", background: "#F2F2F7", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 900, color: "#1C1C1E" } }, titles[tab])), tab === "dashboard" && /* @__PURE__ */ React.createElement(Dashboard, { txs, cats, profile, onOpenTx: openTx, onEditProfile: () => setShowProfile(true) }), tab === "movimenti" && /* @__PURE__ */ React.createElement(Movimenti, { txs, cats, onOpenTx: openTx }), tab === "tags" && /* @__PURE__ */ React.createElement(Tags, { txs, cats, onRenameTag: (oldTag, newTag) => {
+  return /* @__PURE__ */ React.createElement("div", { style: S.phone }, tab !== "dashboard" && /* @__PURE__ */ React.createElement("div", { style: { padding: "2px 16px 8px", background: "#F2F2F7", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 900, color: "#1C1C1E" } }, titles[tab])), tab === "dashboard" && /* @__PURE__ */ React.createElement(Dashboard, { txs, cats, profile, onOpenTx: openTx, onEditProfile: () => setShowProfile(true) }), tab === "movimenti" && /* @__PURE__ */ React.createElement(Movimenti, { txs, cats, onOpenTx: openTx }), tab === "tags" && /* @__PURE__ */ React.createElement(Tags, { txs, cats, onRenameTag: (oldTag, newTag) => {
     setTxs((prev) => {
       const u = prev.map((t) => t.tag === oldTag ? { ...t, tag: newTag } : t);
       sv("sadw_tx5", u);
