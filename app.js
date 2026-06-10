@@ -1,4 +1,4 @@
-// v20 - Tue Jun  9 15:47:31 UTC 2026
+// v21 - Tue Jun  9 18:13:50 UTC 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -116,7 +116,7 @@ function processRecurring(recs, txs) {
   return newTx;
 }
 const S = {
-  phone: { width: "100%", height: "100vh", background: "#F2F2F7", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "system-ui,-apple-system,sans-serif", paddingTop: "env(safe-area-inset-top, 0px)" },
+  phone: { width: "100%", height: "100svh", background: "#F2F2F7", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "system-ui,-apple-system,sans-serif", paddingTop: "env(safe-area-inset-top, 0px)", touchAction: "pan-y" },
   scroll: { flex: 1, overflowY: "scroll", WebkitOverflowScrolling: "touch", paddingBottom: 110, minHeight: 0 },
   nav: { display: "flex", paddingBottom: "env(safe-area-inset-bottom, 8px)", background: "rgba(242,242,247,.96)", borderTop: "0.5px solid rgba(60,60,67,.18)", position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 49 },
   ni: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "7px 0 2px", gap: 3, background: "none", border: "none", cursor: "pointer" },

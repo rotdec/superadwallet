@@ -2,23 +2,47 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
   <title>SuperADWallet</title>
   <meta name="description" content="SuperADWallet — gestisci le tue spese personali in modo semplice e veloce.">
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="SuperADWallet"/>
-  <meta name="theme-color" content="#007AFF"/>
+  <meta name="theme-color" content="#F2F2F7"/>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
-    html,body{height:100%;overflow:hidden;background:#F2F2F7;overscroll-behavior:none;}
-    #root{height:100%;}
+    html{
+      height:-webkit-fill-available;
+      height:100%;
+    }
+    body{
+      height:100svh;
+      height:-webkit-fill-available;
+      overflow:hidden;
+      background:#F2F2F7;
+      overscroll-behavior:none;
+      -webkit-text-size-adjust:100%;
+      position:fixed;
+      width:100%;
+    }
+    #root{
+      height:100%;
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+    }
+    /* Prevent keyboard from pushing layout */
+    @supports(height: 100dvh) {
+      body { height: 100dvh; }
+    }
+    input, select, textarea {
+      font-size: 16px !important; /* prevents zoom on focus on iOS */
+    }
   </style>
 </head>
 <body>
   <div id="root">
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:linear-gradient(160deg,#007AFF,#5AC8FA);font-family:'Nunito',sans-serif;text-align:center;padding:40px 20px;">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(160deg,#007AFF,#5AC8FA);font-family:'Nunito',sans-serif;text-align:center;padding:40px 20px;">
       <div style="font-size:52px;margin-bottom:12px;">💸</div>
       <h1 style="font-size:28px;font-weight:900;color:#fff;margin-bottom:8px;">SuperADWallet</h1>
       <p style="color:rgba(255,255,255,0.8);font-size:15px;max-width:300px;line-height:1.6;">Gestisci le tue spese personali in modo semplice e veloce.</p>
