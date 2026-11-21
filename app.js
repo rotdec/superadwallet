@@ -1,4 +1,4 @@
-// v21 - Tue Jun  9 18:13:50 UTC 2026
+// v22 Sat Nov 21 18:13:34 CET 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -18,14 +18,14 @@ function ld(k, def) {
   try {
     const v = localStorage.getItem(k);
     return v ? JSON.parse(v) : def;
-  } catch {
+  } catch (e) {
     return def;
   }
 }
 function sv(k, v) {
   try {
     localStorage.setItem(k, JSON.stringify(v));
-  } catch {
+  } catch (e) {
   }
 }
 const CATS = [
@@ -99,21 +99,46 @@ const METODI = ["Carta", "Contanti", "Bonifico", "PayPal", "Satispay"];
 const AVATAR_EMOJIS = ["\u{1F60A}", "\u{1F60E}", "\u{1F9D1}", "\u{1F468}", "\u{1F469}", "\u{1F9D4}", "\u{1F466}", "\u{1F467}", "\u{1F9B8}", "\u{1F43B}", "\u{1F98A}", "\u{1F42F}", "\u{1F43C}", "\u{1F981}", "\u{1F438}"];
 const AVATAR_BG = ["#007AFF", "#34C759", "#FF3B30", "#FF9500", "#AF52DE", "#FF2D55", "#00C7BE", "#FFCC00"];
 const CAT_COLORS = ["#007AFF", "#34C759", "#FF3B30", "#FF9500", "#AF52DE", "#00C7BE", "#FF2D55", "#5AC8FA", "#FFCC00", "#FF6B35", "#30B0C7", "#C77DFF"];
+const pad2 = (n) => String(n).padStart(2, "0");
+const localStr = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
 function processRecurring(recs, txs) {
   const newTx = [];
   const today = todayStr();
   recs.forEach((r) => {
-    if (!r.enabled) return;
+    if (!r.enabled || !r.startDate) return;
     const existing = new Set(txs.filter((t) => t.recurringId === r.id).map((t) => t.date));
-    let cursor = /* @__PURE__ */ new Date(r.startDate + "T00:00:00");
-    const end = /* @__PURE__ */ new Date(today + "T00:00:00");
-    while (cursor <= end) {
-      const ds = cursor.toISOString().split("T")[0];
-      if (!existing.has(ds)) newTx.push({ id: uid(), date: ds, amount: r.amount, type: "uscita", categoryId: r.categoryId, description: r.name, paymentMethod: "Bonifico", notes: "", tag: "", recurringId: r.id, auto: true });
-      cursor = r.frequency === "mensile" ? new Date(cursor.getFullYear(), cursor.getMonth() + 1, cursor.getDate()) : new Date(cursor.getFullYear() + 1, cursor.getMonth(), cursor.getDate());
+    const skipped = new Set(r.skipped || []);
+    const [sy, sm, sd] = r.startDate.split("-").map(Number);
+    for (let i = 0; i < 600; i++) {
+      let y = sy, m = sm - 1;
+      if (r.frequency === "mensile") {
+        m += i;
+        y += Math.floor(m / 12);
+        m = (m % 12 + 12) % 12;
+      } else {
+        y += i;
+      }
+      const dim = new Date(y, m + 1, 0).getDate();
+      const ds = localStr(y, m, Math.min(sd, dim));
+      if (ds > today) break;
+      if (existing.has(ds) || skipped.has(ds)) continue;
+      existing.add(ds);
+      newTx.push({ id: uid(), date: ds, amount: r.amount, type: "uscita", categoryId: r.categoryId, description: r.name, paymentMethod: "Bonifico", notes: "", tag: "", recurringId: r.id, auto: true });
     }
   });
   return newTx;
+}
+function dedupTxs(txs) {
+  const seen = /* @__PURE__ */ new Map();
+  const out = [];
+  txs.forEach((t) => {
+    const k = t.recurringId ? `r|${t.recurringId}|${t.date}` : `n|${t.date}|${t.amount}|${t.type}|${t.categoryId}|${(t.description || "").trim().toLowerCase()}`;
+    if (!seen.has(k)) {
+      seen.set(k, true);
+      out.push(t);
+    }
+  });
+  return out;
 }
 const S = {
   phone: { width: "100%", height: "100svh", background: "#F2F2F7", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "system-ui,-apple-system,sans-serif", paddingTop: "env(safe-area-inset-top, 0px)", touchAction: "pan-y" },
@@ -202,7 +227,8 @@ function TxRow({ tx, cats, onClick }) {
   return /* @__PURE__ */ React.createElement("div", { style: S.row, onClick: () => onClick(tx) }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: cat.c + "22" } }, cat.i), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, tx.description, tx.auto && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, background: "rgba(0,122,255,.12)", color: "#007AFF", borderRadius: 4, padding: "1px 5px", marginLeft: 5 } }, "AUTO")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#8E8E93", marginTop: 1 } }, fmtD(tx.date), " \xB7 ", cat.n, tx.tag ? /* @__PURE__ */ React.createElement("span", { style: { marginLeft: 5, background: "rgba(175,82,222,.12)", color: "#AF52DE", borderRadius: 6, padding: "1px 6px", fontSize: 10 } }, "\u{1F3F7}\uFE0F ", tx.tag) : "")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 700, flexShrink: 0, color: isI ? "#34C759" : "#FF3B30" } }, isI ? "+" : "\u2212", fmt(tx.amount)));
 }
 function TxSheet({ tx, cats, allTags, onSave, onDelete, onClose }) {
-  const [f, setF] = useState({ amount: tx?.amount?.toString() || "", type: tx?.type || "uscita", categoryId: tx?.categoryId || cats[0]?.id || "", date: tx?.date || todayStr(), paymentMethod: tx?.paymentMethod || "Carta", description: tx?.description || "", tag: tx?.tag || "" });
+  var _a, _b;
+  const [f, setF] = useState({ amount: ((_a = tx == null ? void 0 : tx.amount) == null ? void 0 : _a.toString()) || "", type: (tx == null ? void 0 : tx.type) || "uscita", categoryId: (tx == null ? void 0 : tx.categoryId) || ((_b = cats[0]) == null ? void 0 : _b.id) || "", date: (tx == null ? void 0 : tx.date) || todayStr(), paymentMethod: (tx == null ? void 0 : tx.paymentMethod) || "Carta", description: (tx == null ? void 0 : tx.description) || "", tag: (tx == null ? void 0 : tx.tag) || "" });
   const [cs, setCs] = useState("");
   const [sug, setSug] = useState(null);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -212,11 +238,12 @@ function TxSheet({ tx, cats, allTags, onSave, onDelete, onClose }) {
     setSug(s && s.id !== f.categoryId ? s : null);
   };
   const handleSave = () => {
+    var _a2;
     const amt = parseFloat(f.amount.replace(",", "."));
     if (!amt || amt <= 0) return alert("Importo non valido");
-    const selCatName = cats.find((c) => c.id === f.categoryId)?.n || "Transazione";
+    const selCatName = ((_a2 = cats.find((c) => c.id === f.categoryId)) == null ? void 0 : _a2.n) || "Transazione";
     const description = f.description.trim() || selCatName;
-    onSave({ ...f, description, amount: amt, id: tx?.id || uid() });
+    onSave({ ...f, description, amount: amt, id: (tx == null ? void 0 : tx.id) || uid() });
   };
   const selCat = cats.find((c) => c.id === f.categoryId);
   const filtCats = cs ? cats.filter((c) => c.n.toLowerCase().includes(cs.toLowerCase())) : cats;
@@ -255,13 +282,14 @@ function TxSheet({ tx, cats, allTags, onSave, onDelete, onClose }) {
   )))), /* @__PURE__ */ React.createElement("button", { onClick: handleSave, style: { ...S.btn, background: "#007AFF", color: "#fff" } }, tx ? "Salva Modifiche" : "Aggiungi Transazione"), tx && /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(tx.id), style: { ...S.btn, background: "rgba(255,59,48,.1)", color: "#FF3B30", marginTop: 8 } }, "Elimina", tx.auto ? " (solo questo mese)" : ""));
 }
 function RecSheet({ rec, cats, onSave, onDelete, onClose }) {
-  const [f, setF] = useState({ name: rec?.name || "", amount: rec?.amount?.toString() || "", frequency: rec?.frequency || "mensile", startDate: rec?.startDate || todayStr(), categoryId: rec?.categoryId || cats[0]?.id || "", enabled: rec?.enabled !== false });
+  var _a, _b;
+  const [f, setF] = useState({ name: (rec == null ? void 0 : rec.name) || "", amount: ((_a = rec == null ? void 0 : rec.amount) == null ? void 0 : _a.toString()) || "", frequency: (rec == null ? void 0 : rec.frequency) || "mensile", startDate: (rec == null ? void 0 : rec.startDate) || todayStr(), categoryId: (rec == null ? void 0 : rec.categoryId) || ((_b = cats[0]) == null ? void 0 : _b.id) || "", enabled: (rec == null ? void 0 : rec.enabled) !== false });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const handleSave = () => {
     const amt = parseFloat(f.amount.replace(",", "."));
     if (!amt || amt <= 0) return alert("Importo non valido");
     if (!f.name.trim()) return alert("Inserisci un nome");
-    onSave({ ...f, amount: amt, id: rec?.id || uid() });
+    onSave({ ...f, amount: amt, id: (rec == null ? void 0 : rec.id) || uid() });
   };
   return /* @__PURE__ */ React.createElement(Sheet, { title: rec ? "Modifica Ricorrente" : "Nuova Spesa Ricorrente", onClose, onSave: handleSave }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Nome"), /* @__PURE__ */ React.createElement(Inp, { type: "text", placeholder: "es. Affitto, Netflix, Palestra...", value: f.name, onChange: (e) => set("name", e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Importo"), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 18, color: "#AEAEB2" } }, "\u20AC"), /* @__PURE__ */ React.createElement(Inp, { type: "number", inputMode: "decimal", placeholder: "0,00", value: f.amount, onChange: (e) => set("amount", e.target.value), style: { paddingLeft: 30, fontSize: 22, fontWeight: 700 } }))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Frequenza"), /* @__PURE__ */ React.createElement("div", { style: S.seg }, ["mensile", "annuale"].map((v) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => set("frequency", v), style: { ...S.segBtn, ...f.frequency === v ? { background: "#fff", color: "#1C1C1E", boxShadow: "0 1px 3px rgba(0,0,0,.1)" } : {}, textTransform: "capitalize" } }, v)))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Data Inizio"), /* @__PURE__ */ React.createElement(Inp, { type: "date", value: f.startDate, onChange: (e) => set("startDate", e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Lbl, null, "Categoria"), /* @__PURE__ */ React.createElement("select", { style: { ...S.inp }, value: f.categoryId, onChange: (e) => set("categoryId", e.target.value) }, cats.map((c) => /* @__PURE__ */ React.createElement("option", { key: c.id, value: c.id }, c.i, " ", c.n)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, background: "#F2F2F7", borderRadius: 10, padding: "12px 14px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15, fontWeight: 600, color: "#1C1C1E" } }, "Attivo"), /* @__PURE__ */ React.createElement(Toggle, { checked: f.enabled, onChange: (v) => set("enabled", v) })), /* @__PURE__ */ React.createElement("button", { onClick: handleSave, style: { ...S.btn, background: "#007AFF", color: "#fff" } }, rec ? "Salva" : "Aggiungi"), rec && /* @__PURE__ */ React.createElement("button", { onClick: () => onDelete(rec.id), style: { ...S.btn, background: "rgba(255,59,48,.1)", color: "#FF3B30", marginTop: 8 } }, "Elimina"));
 }
@@ -410,7 +438,7 @@ function Dashboard({ txs, cats, profile, onOpenTx, onEditProfile }) {
     outline: active ? "1.5px solid rgba(255,255,255,.6)" : "none",
     transition: ".15s"
   });
-  return /* @__PURE__ */ React.createElement("div", { style: S.scroll }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, padding: "4px 16px 12px" } }, /* @__PURE__ */ React.createElement("div", { onClick: onEditProfile, style: { width: 42, height: 42, borderRadius: "50%", background: profile?.bg || "#007AFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, cursor: "pointer", flexShrink: 0 } }, profile?.emoji || "\u{1F60A}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#8E8E93", fontWeight: 500 } }, gr, ","), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-.3px" } }, profile?.nome || "Utente", " \u{1F44B}")), /* @__PURE__ */ React.createElement("button", { onClick: onEditProfile, style: { background: "rgba(120,120,128,.12)", border: "none", width: 32, height: 32, borderRadius: "50%", cursor: "pointer", fontSize: 15 } }, "\u270F\uFE0F")), /* @__PURE__ */ React.createElement("div", { style: S.card }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,.75)" } }, "Saldo Totale"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 34, fontWeight: 800, color: "#fff", letterSpacing: "-1px", margin: "3px 0 14px", lineHeight: 1 } }, fmt(bal)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: pillStyle(view === "entrate"), onClick: () => setView("entrate") }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.7)" } }, "\u2191 ENTRATE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 } }, fmtS(totI)), view === "entrate" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "rgba(255,255,255,.8)", marginTop: 2 } }, "\u25CF attivo")), /* @__PURE__ */ React.createElement("div", { style: pillStyle(view === "uscite"), onClick: () => setView("uscite") }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.7)" } }, "\u2193 USCITE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 } }, fmtS(totE)), view === "uscite" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "rgba(255,255,255,.8)", marginTop: 2 } }, "\u25CF attivo")))), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 14px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, [["giorno", "Giorno"], ["settimana", "Sett."], ["mese", "Mese"], ["anno", "Anno"]].map(([v, l]) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { style: S.scroll }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, padding: "4px 16px 12px" } }, /* @__PURE__ */ React.createElement("div", { onClick: onEditProfile, style: { width: 42, height: 42, borderRadius: "50%", background: (profile == null ? void 0 : profile.bg) || "#007AFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, cursor: "pointer", flexShrink: 0 } }, (profile == null ? void 0 : profile.emoji) || "\u{1F60A}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#8E8E93", fontWeight: 500 } }, gr, ","), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-.3px" } }, (profile == null ? void 0 : profile.nome) || "Utente", " \u{1F44B}")), /* @__PURE__ */ React.createElement("button", { onClick: onEditProfile, style: { background: "rgba(120,120,128,.12)", border: "none", width: 32, height: 32, borderRadius: "50%", cursor: "pointer", fontSize: 15 } }, "\u270F\uFE0F")), /* @__PURE__ */ React.createElement("div", { style: S.card }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,.75)" } }, "Saldo Totale"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 34, fontWeight: 800, color: "#fff", letterSpacing: "-1px", margin: "3px 0 14px", lineHeight: 1 } }, fmt(bal)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: pillStyle(view === "entrate"), onClick: () => setView("entrate") }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.7)" } }, "\u2191 ENTRATE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 } }, fmtS(totI)), view === "entrate" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "rgba(255,255,255,.8)", marginTop: 2 } }, "\u25CF attivo")), /* @__PURE__ */ React.createElement("div", { style: pillStyle(view === "uscite"), onClick: () => setView("uscite") }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.7)" } }, "\u2193 USCITE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 } }, fmtS(totE)), view === "uscite" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "rgba(255,255,255,.8)", marginTop: 2 } }, "\u25CF attivo")))), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 14px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, [["giorno", "Giorno"], ["settimana", "Sett."], ["mese", "Mese"], ["anno", "Anno"]].map(([v, l]) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: v,
@@ -756,7 +784,7 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImp
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const save = () => {
     if (!form.name.trim()) return alert("Inserisci un nome");
-    onCatSave({ id: editCat?.id || uid(), n: form.name, i: form.i, c: form.c });
+    onCatSave({ id: (editCat == null ? void 0 : editCat.id) || uid(), n: form.name, i: form.i, c: form.c });
     setShowSheet(false);
   };
   const exportExcel = () => {
@@ -765,7 +793,7 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImp
     const rows = txs.map((t) => {
       const cat = cats.find((c) => c.id === t.categoryId);
       const esc = (s) => (s || "").replace(/"/g, "");
-      return [t.date, esc(t.description), esc(cat?.n || "Altro"), t.categoryId || "", t.type === "entrata" ? "Entrata" : "Uscita", t.amount.toString().replace(".", ","), esc(t.paymentMethod), esc(t.tag), esc(t.notes)].join(";");
+      return [t.date, esc(t.description), esc((cat == null ? void 0 : cat.n) || "Altro"), t.categoryId || "", t.type === "entrata" ? "Entrata" : "Uscita", t.amount.toString().replace(".", ","), esc(t.paymentMethod), esc(t.tag), esc(t.notes)].join(";");
     });
     const csv = BOM + [headers.join(";"), ...rows].join("\n");
     const a = document.createElement("a");
@@ -791,15 +819,16 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImp
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
+      var _a, _b, _c;
       try {
         const text = ev.target.result.replace(/^\uFEFF/, "");
         if (file.name.endsWith(".json")) {
           const backup = JSON.parse(text);
           if (!backup.version) return alert("File JSON non valido");
           if (!window.confirm("Ripristinare il backup completo?\n\nVerranno importati:\n\u2022 " + (backup.transactions || []).length + " transazioni\n\u2022 " + (backup.categories || []).length + " categorie\n\u2022 " + (backup.recurrings || []).length + " spese fisse\n\nAttenzione: i dati attuali NON verranno cancellati, verranno aggiunti.")) return;
-          if (backup.categories?.length) onImportCats(backup.categories);
-          if (backup.recurrings?.length) onImportRecs(backup.recurrings);
-          if (backup.transactions?.length) onImport(backup.transactions);
+          if ((_a = backup.categories) == null ? void 0 : _a.length) onImportCats(backup.categories);
+          if ((_b = backup.recurrings) == null ? void 0 : _b.length) onImportRecs(backup.recurrings);
+          if ((_c = backup.transactions) == null ? void 0 : _c.length) onImport(backup.transactions);
           alert("\u2705 Backup ripristinato!");
           e.target.value = "";
           return;
@@ -833,7 +862,7 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImp
             date,
             amount: amt,
             type,
-            categoryId: resolvedCat?.id || "c-altro",
+            categoryId: (resolvedCat == null ? void 0 : resolvedCat.id) || "c-altro",
             description: getCol(row, ["descrizione", "description"]) || catName || "Importato",
             paymentMethod: getCol(row, ["metodo", "paymentmethod"]) || "Altro",
             tag: getCol(row, ["tag"]) || "",
@@ -896,8 +925,10 @@ function Tags({ txs, cats, onRenameTag }) {
   return /* @__PURE__ */ React.createElement("div", { style: S.scroll }, !selected && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px" } }, /* @__PURE__ */ React.createElement("div", { style: S.sectionLabel }, allTags.length, " Tag / Progetti"), /* @__PURE__ */ React.createElement("div", { style: S.group }, allTags.map((tag) => {
     const tagged = txs.filter((t) => t.tag === tag);
     const totE = tagged.filter((t) => t.type === "uscita").reduce((s, t) => s + t.amount, 0);
+    const totIn = tagged.filter((t) => t.type === "entrata").reduce((s, t) => s + t.amount, 0);
+    const saldo = totIn - totE;
     const dates = tagged.map((t) => t.date).sort();
-    return /* @__PURE__ */ React.createElement("div", { key: tag, style: S.row, onClick: () => setSelected(tag) }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: "rgba(175,82,222,.12)", fontSize: 20 } }, tagEmoji(tag)), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, tag), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#8E8E93", marginTop: 1 } }, tagged.length, " transazioni", dates[0] ? " \xB7 " + fmtD(dates[0]) : "", dates.length > 1 ? " \u2192 " + fmtD(dates[dates.length - 1]) : "")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: "#FF3B30", flexShrink: 0 } }, "\u2212", fmt(totE)), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16, marginLeft: 4 } }, "\u203A"));
+    return /* @__PURE__ */ React.createElement("div", { key: tag, style: S.row, onClick: () => setSelected(tag) }, /* @__PURE__ */ React.createElement("div", { style: { ...S.rowIcon, background: "rgba(175,82,222,.12)", fontSize: 20 } }, tagEmoji(tag)), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "#1C1C1E", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, tag), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#8E8E93", marginTop: 1 } }, tagged.length, " transazioni", dates[0] ? " \xB7 " + fmtD(dates[0]) : "", dates.length > 1 ? " \u2192 " + fmtD(dates[dates.length - 1]) : "")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: saldo >= 0 ? "#34C759" : "#FF3B30", flexShrink: 0 } }, saldo >= 0 ? "+" : "\u2212", fmt(Math.abs(saldo))), /* @__PURE__ */ React.createElement("div", { style: { color: "#AEAEB2", fontSize: 16, marginLeft: 4 } }, "\u203A"));
   }))), selected && tagData && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 8px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSelected(null), style: { background: "none", border: "none", color: "#007AFF", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "8px 0" } }, "\u2039 Tutti i tag"), renaming ? /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 6 } }, /* @__PURE__ */ React.createElement(
     "input",
     {
@@ -946,7 +977,7 @@ function App() {
       const v = localStorage.getItem("sadw_profile5");
       const p = v ? JSON.parse(v) : null;
       return p && p.nome ? p : null;
-    } catch {
+    } catch (e) {
       return null;
     }
   });
@@ -989,9 +1020,10 @@ function App() {
     txRef.current = txs;
   }, [txs]);
   useEffect(() => {
-    const newTx = processRecurring(recs, txRef.current);
-    if (newTx.length > 0) setTxs((prev) => {
-      const u = [...prev, ...newTx];
+    const clean = dedupTxs(txRef.current);
+    const newTx = processRecurring(recs, clean);
+    if (clean.length !== txRef.current.length || newTx.length > 0) setTxs(() => {
+      const u = [...clean, ...newTx];
       sv("sadw_tx5", u);
       return u;
     });
@@ -1008,6 +1040,8 @@ function App() {
     setEditTx(null);
   }, []);
   const delTx = useCallback((id) => {
+    const t0 = txRef.current.find((t) => t.id === id);
+    if (t0 && t0.recurringId) setRecs((prev) => prev.map((r) => r.id === t0.recurringId ? { ...r, skipped: [...r.skipped || [], t0.date] } : r));
     setTxs((prev) => prev.filter((t) => t.id !== id));
     setShowTx(false);
     setEditTx(null);
@@ -1037,7 +1071,7 @@ function App() {
   const allTags = useMemo(() => [...new Set(txs.map((t) => t.tag).filter(Boolean))].sort(), [txs]);
   const importTxs = useCallback((imported) => {
     setTxs((prev) => {
-      const u = [...prev, ...imported];
+      const u = dedupTxs([...prev, ...imported]);
       sv("sadw_tx5", u);
       return u;
     });
