@@ -1,4 +1,4 @@
-// v25 Sat Nov 21 22:22:31 CET 2026
+// v26 Sat Nov 21 22:27:37 CET 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -1146,7 +1146,21 @@ function App() {
   const allTags = useMemo(() => [...new Set(txs.map((t) => t.tag).filter(Boolean))].sort(), [txs]);
   const importTxs = useCallback((imported) => {
     setTxs((prev) => {
-      const u = dedupTxs([...prev, ...imported]);
+      const key = (t) => `${t.date}|${Math.round(t.amount * 100)}|${t.type}|${(t.description || "").trim().toLowerCase()}`;
+      const map = /* @__PURE__ */ new Map();
+      prev.forEach((t) => {
+        if (!map.has(key(t))) map.set(key(t), t);
+      });
+      const fixed = /* @__PURE__ */ new Map();
+      const fresh = [];
+      imported.forEach((t) => {
+        const ex = map.get(key(t));
+        if (ex) {
+          if (t.categoryId && t.categoryId !== "c-altro" && ex.categoryId !== t.categoryId) fixed.set(ex.id, { ...ex, categoryId: t.categoryId, tag: ex.tag || t.tag || "" });
+        } else fresh.push(t);
+      });
+      const base = prev.map((t) => fixed.get(t.id) || t);
+      const u = dedupTxs([...base, ...fresh]);
       sv("sadw_tx5", u);
       return u;
     });
