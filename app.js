@@ -1,4 +1,4 @@
-// v23 Sat Nov 21 22:04:14 CET 2026
+// v24 Sat Nov 21 22:16:44 CET 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -122,14 +122,17 @@ function processRecurring(recs, txs) {
       const ds = localStr(y, m, Math.min(sd, dim));
       if (ds > today) break;
       if (existing.has(ds) || skipped.has(ds)) continue;
+      if (txs.some((t) => t.description === r.name && Math.round(t.amount * 100) === Math.round(r.amount * 100) && t.categoryId === r.categoryId && dayDiff(t.date, ds) <= 1)) continue;
       existing.add(ds);
       newTx.push({ id: uid(), date: ds, amount: r.amount, type: "uscita", categoryId: r.categoryId, description: r.name, paymentMethod: "Bonifico", notes: "", tag: "", recurringId: r.id, auto: true });
     }
   });
   return newTx;
 }
+const dayDiff = (a, b) => Math.abs((/* @__PURE__ */ new Date(a + "T00:00:00") - /* @__PURE__ */ new Date(b + "T00:00:00")) / 864e5);
+const fuzzyKey = (t) => `${(t.description || "").trim().toLowerCase()}|${Math.round(t.amount * 100)}|${t.type}|${t.categoryId}`;
 function dedupTxs(txs) {
-  const sig = (t) => `${t.date}|${Math.round(t.amount * 100)}|${t.type}|${t.categoryId}|${(t.description || "").trim().toLowerCase()}`;
+  const sig = (t) => `${t.date}|${fuzzyKey(t)}`;
   const seenR = /* @__PURE__ */ new Set();
   const pass1 = [];
   txs.forEach((t) => {
@@ -146,7 +149,27 @@ function dedupTxs(txs) {
     const c = best.get(k);
     if (!c || !c.recurringId && t.recurringId) best.set(k, t);
   });
-  return pass1.filter((t) => best.get(sig(t)) === t);
+  const pass2 = pass1.filter((t) => best.get(sig(t)) === t);
+  const kept = [];
+  const byKey = /* @__PURE__ */ new Map();
+  const drop = /* @__PURE__ */ new Set();
+  [...pass2].sort((x, y) => x.date < y.date ? -1 : 1).forEach((t) => {
+    if (!(t.auto || t.recurringId || t.paymentMethod === "Bonifico")) {
+      kept.push(t);
+      return;
+    }
+    const k = fuzzyKey(t);
+    const list = byKey.get(k) || [];
+    const hit = list.find((o) => dayDiff(o.date, t.date) <= 1);
+    if (hit) {
+      if (!hit.recurringId && t.recurringId) {
+        drop.add(hit);
+        list[list.indexOf(hit)] = t;
+      } else drop.add(t);
+    } else list.push(t);
+    byKey.set(k, list);
+  });
+  return pass2.filter((t) => !drop.has(t));
 }
 const S = {
   phone: { width: "100%", height: "100svh", background: "#F2F2F7", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "system-ui,-apple-system,sans-serif", paddingTop: "env(safe-area-inset-top, 0px)", touchAction: "pan-y" },
