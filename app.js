@@ -1,4 +1,4 @@
-// v22 Sat Nov 21 18:13:34 CET 2026
+// v23 Sat Nov 21 22:04:14 CET 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -129,16 +129,24 @@ function processRecurring(recs, txs) {
   return newTx;
 }
 function dedupTxs(txs) {
-  const seen = /* @__PURE__ */ new Map();
-  const out = [];
+  const sig = (t) => `${t.date}|${Math.round(t.amount * 100)}|${t.type}|${t.categoryId}|${(t.description || "").trim().toLowerCase()}`;
+  const seenR = /* @__PURE__ */ new Set();
+  const pass1 = [];
   txs.forEach((t) => {
-    const k = t.recurringId ? `r|${t.recurringId}|${t.date}` : `n|${t.date}|${t.amount}|${t.type}|${t.categoryId}|${(t.description || "").trim().toLowerCase()}`;
-    if (!seen.has(k)) {
-      seen.set(k, true);
-      out.push(t);
+    if (t.recurringId) {
+      const k = t.recurringId + "|" + t.date;
+      if (seenR.has(k)) return;
+      seenR.add(k);
     }
+    pass1.push(t);
   });
-  return out;
+  const best = /* @__PURE__ */ new Map();
+  pass1.forEach((t) => {
+    const k = sig(t);
+    const c = best.get(k);
+    if (!c || !c.recurringId && t.recurringId) best.set(k, t);
+  });
+  return pass1.filter((t) => best.get(sig(t)) === t);
 }
 const S = {
   phone: { width: "100%", height: "100svh", background: "#F2F2F7", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, fontFamily: "system-ui,-apple-system,sans-serif", paddingTop: "env(safe-area-inset-top, 0px)", touchAction: "pan-y" },
