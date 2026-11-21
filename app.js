@@ -1,4 +1,4 @@
-// v24 Sat Nov 21 22:16:44 CET 2026
+// v25 Sat Nov 21 22:22:31 CET 2026
 (function(){
 const{useState,useEffect,useCallback,useMemo,useRef}=React;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -875,6 +875,7 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImp
           return "";
         };
         const imported = [];
+        const newCats = [];
         for (let i = 1; i < lines.length; i++) {
           const row = lines[i].split(sep);
           const date = getCol(row, ["data", "date"]);
@@ -887,7 +888,14 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImp
           const catName = getCol(row, ["categoria", "category"]);
           const catById = catId ? cats.find((c) => c.id === catId) : null;
           const catByName = cats.find((c) => c.n.toLowerCase() === catName.toLowerCase());
-          const resolvedCat = catById || catByName;
+          let resolvedCat = catById || catByName;
+          if (!resolvedCat && catId && catName) {
+            resolvedCat = newCats.find((c) => c.id === catId);
+            if (!resolvedCat) {
+              resolvedCat = { id: catId, n: catName.trim(), i: "\u{1F4E6}", c: "#8E8E93" };
+              newCats.push(resolvedCat);
+            }
+          }
           imported.push({
             id: uid(),
             date,
@@ -903,8 +911,9 @@ function Impostazioni({ cats, txs, recs, onCatSave, onCatDelete, onImport, onImp
         }
         if (imported.length === 0) return alert("Nessuna transazione trovata.");
         if (window.confirm("Importare " + imported.length + " transazioni?")) {
+          if (newCats.length) onImportCats(newCats);
           onImport(imported);
-          alert("\u2705 " + imported.length + " transazioni importate!");
+          alert("\u2705 " + imported.length + " transazioni importate!" + (newCats.length ? "\n" + newCats.length + " categorie ricreate." : ""));
         }
       } catch (err) {
         alert("Errore: " + err.message);
@@ -1059,6 +1068,41 @@ function App() {
       return u;
     });
   }, [recs]);
+  useEffect(() => {
+    if (ld("sadw_restore_cats_v1", false)) return;
+    const CUSTOM = [
+      ["85whviya", "Interessi", "\u{1F3E6}", "#34C759"],
+      ["3jmd4jpr", "Caffe Capsule", "\u2615", "#FF9500"],
+      ["wgy4uk9m", "Donna Pulizie", "\u{1F9F9}", "#5AC8FA"],
+      ["vr5l89g6", "Lavanderia", "\u{1F9FA}", "#007AFF"],
+      ["ca3d61bf", "Arredamento", "\u{1F6CB}\uFE0F", "#AF52DE"],
+      ["11e7u5eh", "Souvenir", "\u{1F5FF}", "#FF2D55"],
+      ["cp5m0l9x", "Ama", "\u{1F5D1}\uFE0F", "#8E8E93"],
+      ["5dvjntfg", "Shopping Lux", "\u231A", "#FFCC00"],
+      ["sgz2u4ig", "Attivit\xE0", "\u{1F39F}\uFE0F", "#FF6B35"],
+      ["c82gyq52", "Parking", "\u{1F17F}\uFE0F", "#007AFF"],
+      ["vh7ffazg", "Museo/eventi", "\u{1F3DB}\uFE0F", "#C77DFF"],
+      ["psibfmzg", "Riscaldamento", "\u{1F321}\uFE0F", "#FF3B30"],
+      ["hshgyc85", "Condominio", "\u{1F3E2}", "#30B0C7"],
+      ["ue38v6vb", "Calcetto", "\u26BD", "#34C759"],
+      ["9rr617qq", "Cecilia", "\u{1F464}", "#4CD964"],
+      ["04w4w3dy", "Mare", "\u{1F30A}", "#5AC8FA"],
+      ["717m7uys", "Lavori casa", "\u{1F528}", "#FF9500"],
+      ["5u73vzpx", "Golf", "\u26F3", "#34C759"],
+      ["cjysjks3", "Fantacalcio", "\u{1F3C6}", "#AF52DE"],
+      ["nxbdedzf", "Dentista", "\u{1F9B7}", "#FF2D55"]
+    ];
+    const RENAME = { "c-affitto": "Mutuo", "c-take": "delivery", "c-sport": "Beach Volley", "c-util": "Luce" };
+    setCats((prev) => {
+      const out = prev.map((c) => RENAME[c.id] && (c.n === "Affitto/Mutuo" || c.n === "Takeaway" || c.n === "Sport/Palestra" || c.n === "Utenze") ? { ...c, n: RENAME[c.id] } : c);
+      CUSTOM.forEach(([id, n, i, c]) => {
+        if (!out.find((x) => x.id === id)) out.push({ id, n, i, c });
+      });
+      sv("sadw_cats5", out);
+      return out;
+    });
+    sv("sadw_restore_cats_v1", true);
+  }, []);
   useEffect(() => sv("sadw_cats5", cats), [cats]);
   useEffect(() => sv("sadw_tx5", txs), [txs]);
   useEffect(() => sv("sadw_rec5", recs), [recs]);
